@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tic-Tac-Toe — Minimax / Alpha–Beta Inspector</title>
+<style>
+:root{--o:#d62f2f;--x:#1f6fe0;--ink:#111;--mute:#6b6b6b;--line:#d8d8d8;--amber:#f59f00}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.app{display:grid;grid-template-columns:minmax(320px,400px) 1fr;gap:24px;padding:16px;max-width:1320px;margin:0 auto;align-items:start}
+@media (max-width:900px){.app{grid-template-columns:1fr}}
+h1{font-size:18px;margin:0 0 2px}
+h1 small{display:block;font-size:12px;font-weight:400;color:var(--mute)}
+h2{font-size:15px;margin:0 0 4px}
+.mO{color:var(--o)}.mX{color:var(--x)}
+b.mO,b.mX{font-weight:700}
+.mute{color:var(--mute)}
+.box{border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin:12px 0}
+.lbl{font-weight:600;margin-bottom:4px}
+.legend{font-size:12.5px;color:#333;margin:10px 0}
+.legend div{margin:2px 0}
+.opt{display:block;margin:4px 0;cursor:pointer}
+.opt input{margin-right:6px}
+button{font:inherit;border:1px solid #999;background:#fff;border-radius:5px;padding:6px 12px;cursor:pointer;color:var(--ink)}
+button:hover:not(:disabled){background:#f3f3f3}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:#111;color:#fff;border-color:#111;margin-top:8px}
+button.primary:hover:not(:disabled){background:#333}
+.btnrow{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.turn{min-height:22px;margin:12px 0 8px;font-size:15px}
+.boardwrap{position:relative;width:min(340px,100%);aspect-ratio:1/1;margin:0 0 4px}
+.board{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:100%;height:100%}
+.cell{font:700 min(78px,17vw)/1 system-ui,sans-serif;background:#fff;border:none;border-radius:0;padding:0;display:flex;align-items:center;justify-content:center;border-right:3px solid #111;border-bottom:3px solid #111;cursor:default;position:relative}
+.cell:nth-child(3n){border-right:none}
+.cell:nth-child(n+7){border-bottom:none}
+.cell:hover{background:#fff!important}
+.cell.O{color:var(--o)}.cell.X{color:var(--x)}
+.cell.last{background:#fff8dc!important}
+.board.hum .cell:not(.O):not(.X){cursor:pointer}
+.board.hum .cell:not(.O):not(.X):hover{background:#fdf0f0!important}
+.board.hum .cell:not(.O):not(.X):hover::after{content:"O";color:var(--o);opacity:.28}
+.board.idle{opacity:.55}
+.cell.win{animation:pulse .9s ease-in-out 3}
+.cell.win.O{--tint:rgba(214,47,47,.22)}
+.cell.win.X{--tint:rgba(31,111,224,.22)}
+@keyframes pulse{0%,100%{background:#fff}50%{background:var(--tint)}}
+.wl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
+.wl.on{display:block}
+.wl line{stroke-width:12;stroke-linecap:round;opacity:.85}
+@keyframes draw{to{stroke-dashoffset:0}}
+.opts label{display:block;margin:6px 0}
+.opts select{font:inherit;margin-left:6px}
+.stats{font-size:12.5px}
+.stats div{margin:2px 0}
+.note{font-size:12px;color:var(--mute)}
+/* right column */
+.right{position:sticky;top:12px}
+@media (max-width:900px){.right{position:static}}
+.panel{border:1px solid var(--line);border-radius:6px;height:calc(100vh - 128px);min-height:380px;overflow:auto;padding:12px;position:relative;background:#fff}
+@media (max-width:900px){.panel{height:auto;max-height:80vh}}
+.empty{color:var(--mute);padding:20px 4px}
+.card{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff;width:max-content;max-width:100%}
+.card.root{border:2px solid #111}
+.card.current{background:#fff8e1;border-color:var(--amber);border-width:2px;box-shadow:0 0 0 3px rgba(245,159,0,.22)}
+.card.ai{border-left:6px solid var(--x)}
+.card.human{border-left:6px solid var(--o)}
+.card.pruned{border-style:dashed;color:var(--mute);background:repeating-linear-gradient(135deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px)}
+.card.pruned .mb{opacity:.5}
+.mb{display:grid;grid-template-columns:repeat(3,16px);grid-auto-rows:16px;border:1px solid #aaa;flex:none}
+.mb i{font-style:normal;font-weight:700;font-size:11px;line-height:15px;text-align:center;border:.5px solid #e2e2e2}
+.mb i.mO{color:var(--o)}.mb i.mX{color:var(--x)}
+.mb i.last{background:#fff3bf}
+.info{font-size:12.5px;line-height:1.35}
+.info .t1{font-weight:600}
+.role{font-size:10px;font-weight:700;padding:0 5px;border-radius:3px;border:1px solid currentColor;margin-left:4px}
+.sc{font-size:13px}
+.ply{color:var(--mute);font-size:11px;margin-left:4px}
+.win-w{font-size:11.5px;color:#444;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:10px;font-weight:700;padding:0 6px;border-radius:9px;border:1px solid;margin:2px 4px 0 0;letter-spacing:.3px}
+.pill.root{color:#111;border-color:#111}
+.pill.cur{color:#b36b00;border-color:var(--amber);background:#fff3d6}
+.pill.ai{color:var(--x);border-color:var(--x)}
+.pill.human{color:var(--o);border-color:var(--o)}
+.tg{padding:1px 7px;font-size:12px;margin-left:4px;border-color:#bbb;flex:none}
+.sp-edge{margin:4px 0 4px 22px;font-size:12px;color:#444;border-left:2px solid #bbb;padding:2px 0 2px 10px}
+.fwd-label{margin:8px 0 2px;font-size:12px;color:#444}
+ul.tree{list-style:none;margin:4px 0 0 14px;padding:0 0 0 16px;border-left:2px solid #ddd}
+ul.tree li{position:relative;margin:6px 0}
+ul.tree li::before{content:"";position:absolute;left:-16px;top:26px;width:14px;border-top:2px solid #ddd}
+.row{display:flex;align-items:center;gap:8px}
+.edge{font-size:12px;color:var(--mute);white-space:nowrap;min-width:66px}
+</style>
+</head>
+<body>
+<div class="app">
+
+<section class="left">
+  <h1>Tic-Tac-Toe <small>Minimax / Alpha–Beta pruning inspector</small></h1>
+
+  <div class="legend">
+    <div><b>Roles (fixed):</b> <b class="mO">O</b> = Human = <b>MAX</b> (maximizer, wants positive scores) &nbsp;|&nbsp; <b class="mX">X</b> = Computer = <b>MIN</b> (minimizer, wants negative scores)</div>
+    <div class="mute">Score: O wins = 10 − ply · X wins = ply − 10 · draw = 0 (ply = moves played from the empty board).</div>
+  </div>
+
+  <div id="setup" class="box">
+    <div class="lbl">Who opens?</div>
+    <label class="opt"><input type="radio" name="role" value="human" checked><b class="mO">O</b> Human (<b>MAX</b>) moves first</label>
+    <label class="opt"><input type="radio" name="role" value="computer"><b class="mX">X</b> Computer (<b>MIN</b>) moves first</label>
+    <button id="start" class="primary">Start</button>
+  </div>
+
+  <div id="turn" class="turn" aria-live="polite"></div>
+
+  <div class="boardwrap">
+    <div id="board" class="board" role="grid" aria-label="Tic-Tac-Toe board"></div>
+    <svg id="wl" class="wl" viewBox="0 0 300 300" aria-hidden="true"><line x1="0" y1="0" x2="0" y2="0"/></svg>
+  </div>
+
+  <div class="btnrow">
+    <button id="aiMove">Play AI move ▶</button>
+    <button id="restart">Restart</button>
+  </div>
+
+  <div class="box opts">
+    <label><input type="checkbox" id="abToggle" checked> Alpha–Beta pruning</label>
+    <label>AI moves
+      <select id="timing">
+        <option value="step" selected>when I press “Play AI move”</option>
+        <option value="auto">automatically after 1.5 s</option>
+      </select>
+    </label>
+    <label>Auto-expand depth in tree
+      <select id="depth">
+        <option value="1">1 (candidates only)</option>
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+      </select>
+    </label>
+    <button id="resetExp" type="button">Reset tree expansion</button>
+  </div>
+
+  <div id="stats" class="box stats"></div>
+</section>
+
+<section class="right">
+  <h2>Game tree — state viewer</h2>
+  <div class="note" style="margin-bottom:6px">
+    Spine = moves actually played. Below the current node: the forward search (rebuilt each computer turn, full depth, expand any node on demand). Under α–β, scores of non-best branches can be bounds rather than exact values.
+  </div>
+  <div id="panel" class="panel"></div>
+</section>
+
+</div>
+
+<script>
+/*
+ * Algorithms adapted from tictactoe.ipynb:
+ *   check_winner -> check(), minimax -> mm(), alpha_beta -> ab()
+ * Differences: Human = O = MAX, Computer = X = MIN (fixed); either side may open (chosen as "Who opens?");
+ * depth is the ply from the empty board so scores stay comparable across turns.
+ */
+(function () {
+  'use strict';
+
+  var LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  var $ = function (id) { return document.getElementById(id); };
+  var INF = Infinity;
+
+  var G = {
+    phase: 'setup',          // setup | human | ai | over
+    first: 'O',              // mark that opens
+    spine: [],               // [{node, by}]
+    forward: null,           // {root}
+    ab: true, auto: false, depthShow: 2,
+    nodes: new Map(), timer: null, stats: null, token: 0, drawKey: ''
+  };
+  var uid = 0, cnt = 0;
+
+  function other(m) { return m === 'O' ? 'X' : 'O'; }
+  function turnMark(ply) { return ply % 2 === 0 ? G.first : other(G.first); }
+  function mk(m) { return '<b class="m' + m + '">' + m + '</b>'; }
+  function fmt(v) { return v === INF ? '+∞' : v === -INF ? '−∞' : v > 0 ? '+' + v : v < 0 ? '−' + Math.abs(v) : '0'; }
+
+  /* ---------- notebook algorithms ---------- */
+  function check(s) {
+    for (var k = 0; k < 8; k++) {
+      var L = LINES[k];
+      if (s[L[0]] && s[L[0]] === s[L[1]] && s[L[1]] === s[L[2]]) return s[L[0]];
+    }
+    for (var i = 0; i < 9; i++) if (!s[i]) return null;
+    return 'Tie';
+  }
+  function termVal(w, ply) { return w === 'O' ? 10 - ply : w === 'X' ? ply - 10 : 0; }
+
+  function mm(s, ply) {
+    cnt++;
+    var w = check(s);
+    if (w !== null) return termVal(w, ply);
+    var m = turnMark(ply), max = (m === 'O'), best = max ? -INF : INF;
+    for (var i = 0; i < 9; i++) {
+      if (s[i]) continue;
+      s[i] = m;
+      var v = mm(s, ply + 1);
+      s[i] = '';
+      if (max ? v > best : v < best) best = v;
+    }
+    return best;
+  }
+
+  function ab(s, ply, a, b) {
+    cnt++;
+    var w = check(s);
+    if (w !== null) return termVal(w, ply);
+    var m = turnMark(ply), best, i, v;
+    if (m === 'O') {
+      best = -INF;
+      for (i = 0; i < 9; i++) {
+        if (s[i]) continue;
+        s[i] = 'O'; v = ab(s, ply + 1, a, b); s[i] = '';
+        if (v > best) best = v;
+        if (best > a) a = best;
+        if (b <= a) break;            // beta cut-off
+      }
+    } else {
+      best = INF;
+      for (i = 0; i < 9; i++) {
+        if (s[i]) continue;
+        s[i] = 'X'; v = ab(s, ply + 1, a, b); s[i] = '';
+        if (v < best) best = v;
+        if (best < b) b = best;
+        if (b <= a) break;            // alpha cut-off
+      }
+    }
+    return best;
+  }
+
+  function solve(state, ply) {
+    return G.ab ? ab(state.slice(), ply, -INF, INF) : mm(state.slice(), ply);
+  }
+
+  /* ---------- tree model ---------- */
+  function mkNode(state, ply, move, mark, value, win) {
+    var n = { id: ++uid, state: state, ply: ply, move: move, mark: mark, value: value,
+              win: win, children: null, open: undefined, term: check(state) };
+    G.nodes.set(n.id, n);
+    return n;
+  }
+  function currentNode() { return G.spine[G.spine.length - 1].node; }
+  function resetNodeMap() {
+    G.nodes = new Map();
+    G.spine.forEach(function (e) { G.nodes.set(e.node.id, e.node); });
+  }
+
+  // Lazily expand a node: children are searched in order with the live [alpha, beta] window.
+  function expandNode(n, isRoot) {
+    if (n.children || n.term) return;
+    var mover = turnMark(n.ply), max = (mover === 'O');
+    var win = isRoot ? [-INF, INF] : (n.win || [-INF, INF]);
+    var a = win[0], b = win[1], best = max ? -INF : INF, cut = false, out = [];
+    for (var i = 0; i < 9; i++) {
+      if (n.state[i]) continue;
+      var st = n.state.slice(); st[i] = mover;
+      if (cut) { out.push({ pruned: true, id: ++uid, state: st, ply: n.ply + 1, move: i, mark: mover }); continue; }
+      var v = G.ab ? ab(st, n.ply + 1, a, b) : mm(st, n.ply + 1);
+      var c = mkNode(st, n.ply + 1, i, mover, v, G.ab ? [a, b] : null);
+      out.push(c);
+      if (max) { if (v > best) best = v; if (best > a) a = best; }
+      else { if (v < best) best = v; if (best < b) b = best; }
+      if (G.ab && b <= a) cut = true;
+    }
+    n.children = out;
+  }
+
+  function computeStats(root) {
+    cnt = 0; mm(root.state.slice(), root.ply); var m = cnt;
+    cnt = 0; ab(root.state.slice(), root.ply, -INF, INF); var a = cnt;
+    G.stats = { m: m, a: a, ply: root.ply };
+  }
+
+  /* ---------- game flow ---------- */
+  function clearTimer() { if (G.timer) { clearTimeout(G.timer); G.timer = null; } }
+
+  function startGame() {
+    if (G.phase !== 'setup') return;
+    clearTimer(); G.token++;
+    G.first = document.querySelector('input[name=role]:checked').value === 'human' ? 'O' : 'X';
+    uid = 0; G.nodes = new Map(); G.stats = null; G.drawKey = '';
+    var st = ['', '', '', '', '', '', '', '', ''];
+    var root = mkNode(st, 0, null, null, solve(st, 0), G.ab ? [-INF, INF] : null);
+    G.spine = [{ node: root, by: null }];
+    nextTurn();
+  }
+
+  function nextTurn() {
+    var cur = currentNode();
+    if (cur.term) { G.phase = 'over'; G.forward = null; renderAll(true); return; }
+    if (turnMark(cur.ply) === 'X') enterAi();
+    else { G.phase = 'human'; G.forward = null; renderAll(true); }
+  }
+
+  function rebuildForward() {
+    var root = currentNode();
+    resetNodeMap();
+    root.win = G.ab ? [-INF, INF] : null;
+    root.children = null; root.open = true;
+    G.forward = { root: root };
+    expandNode(root, true);
+  }
+
+  function enterAi() {
+    G.phase = 'ai';
+    rebuildForward();
+    computeStats(G.forward.root);
+    renderAll(true);
+    scheduleAuto();
+  }
+
+  function scheduleAuto() {
+    clearTimer();
+    if (G.auto && G.phase === 'ai') {
+      var tok = G.token;
+      G.timer = setTimeout(function () { if (tok === G.token && G.phase === 'ai') playAi(); }, 1500);
+    }
+  }
+
+  function humanMove(i) {
+    if (G.phase !== 'human') return;
+    var cur = currentNode();
+    if (cur.state[i]) return;
+    var st = cur.state.slice(); st[i] = 'O';
+    var n = mkNode(st, cur.ply + 1, i, 'O', solve(st, cur.ply + 1), G.ab ? [-INF, INF] : null);
+    G.spine.push({ node: n, by: 'human' });      // siblings are never kept
+    nextTurn();
+  }
+
+  function playAi() {
+    if (G.phase !== 'ai') return;
+    clearTimer();
+    var root = G.forward.root;
+    expandNode(root, true);
+    var max = turnMark(root.ply) === 'O', best = null;
+    root.children.forEach(function (c) {
+      if (c.pruned) return;
+      if (best === null || (max ? c.value > best.value : c.value < best.value)) best = c;
+    });
+    best.children = null; best.open = undefined;
+    G.spine.push({ node: best, by: 'ai' });
+    G.forward = null;                             // everything else is discarded
+    resetNodeMap();
+    nextTurn();
+  }
+
+  function restart() {
+    clearTimer(); G.token++;
+    G.phase = 'setup'; G.spine = []; G.forward = null; G.stats = null;
+    G.nodes = new Map(); G.drawKey = '';
+    renderAll(true);
+  }
+
+  /* ---------- rendering ---------- */
+  var board = $('board'), cells = [];
+  (function buildBoard() {
+    for (var i = 0; i < 9; i++) {
+      (function (i) {
+        var c = document.createElement('button');
+        c.type = 'button'; c.className = 'cell'; c.setAttribute('role', 'gridcell');
+        c.addEventListener('click', function () { humanMove(i); });
+        board.appendChild(c); cells.push(c);
+      })(i);
+    }
+  })();
+
+  function winLine(s) {
+    for (var k = 0; k < 8; k++) {
+      var L = LINES[k];
+      if (s[L[0]] && s[L[0]] === s[L[1]] && s[L[1]] === s[L[2]]) return L;
+    }
+    return null;
+  }
+
+  function drawWin(line, who) {
+    var svg = $('wl'), ln = svg.querySelector('line');
+    if (!line) {                      // no winner: always hide the line and clear any animation
+      svg.classList.remove('on');
+      ln.style.animation = 'none';
+      G.drawKey = '';
+      return;
+    }
+    var key = line.join('') + who;
+    if (key === G.drawKey) return;    // same win already drawn: don't replay the animation
+    G.drawKey = key;
+    function ctr(i) { return [(i % 3) * 100 + 50, Math.floor(i / 3) * 100 + 50]; }
+    var p1 = ctr(line[0]), p2 = ctr(line[2]);
+    var dx = p2[0] - p1[0], dy = p2[1] - p1[1], L = Math.sqrt(dx * dx + dy * dy);
+    var ex = dx / L * 30, ey = dy / L * 30;
+    var x1 = p1[0] - ex, y1 = p1[1] - ey, x2 = p2[0] + ex, y2 = p2[1] + ey;
+    var len = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+    ln.setAttribute('x1', x1); ln.setAttribute('y1', y1); ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+    ln.style.stroke = who === 'O' ? 'var(--o)' : 'var(--x)';
+    ln.style.strokeDasharray = len; ln.style.strokeDashoffset = len;
+    ln.style.animation = 'none';
+    svg.classList.add('on');
+    void ln.getBoundingClientRect();
+    ln.style.animation = 'draw .7s ease-out .15s forwards';
+  }
+
+  function renderBoard() {
+    var cur = G.spine.length ? currentNode() : null;
+    var st = cur ? cur.state : ['', '', '', '', '', '', '', '', ''];
+    var line = (G.phase === 'over' && cur && cur.term && cur.term !== 'Tie') ? winLine(st) : null;
+    cells.forEach(function (el, i) {
+      el.textContent = st[i];
+      el.className = 'cell' + (st[i] ? ' ' + st[i] : '') +
+        (cur && cur.move === i && G.phase !== 'over' ? ' last' : '') +
+        (line && line.indexOf(i) >= 0 ? ' win' : '');
+      el.setAttribute('aria-label', 'cell ' + i + (st[i] ? ' ' + st[i] : ' empty'));
+    });
+    board.className = 'board' + (G.phase === 'human' ? ' hum' : '') + (G.phase === 'setup' ? ' idle' : '');
+    drawWin(line, cur && cur.term);
+  }
+
+  function renderTurn() {
+    var h = '';
+    if (G.phase === 'setup') h = 'Choose who opens, then press <b>Start</b>.';
+    else if (G.phase === 'human') h = 'Turn: ' + mk('O') + ' <b>Human</b> (MAX) — click an empty cell';
+    else if (G.phase === 'ai') h = G.auto
+      ? 'Turn: ' + mk('X') + ' <b>Computer</b> (MIN) — about to move…'
+      : 'Turn: ' + mk('X') + ' <b>Computer</b> (MIN) — inspect the search, then press “Play AI move”';
+    else {
+      var w = currentNode().term;
+      h = w === 'Tie' ? '<b>Draw</b> — the board is full.'
+        : mk(w) + ' <b>' + (w === 'O' ? 'Human' : 'Computer') + ' wins!</b>';
+    }
+    $('turn').innerHTML = h;
+  }
+
+  function renderControls() {
+    var setup = G.phase === 'setup';
+    $('start').disabled = !setup;
+    document.querySelectorAll('input[name=role]').forEach(function (r) { r.disabled = !setup; });
+    $('restart').disabled = setup;
+    $('aiMove').style.display = (G.phase === 'ai' && !G.auto) ? '' : 'none';
+    renderStats();
+  }
+
+  function renderStats() {
+    var s = G.stats, el = $('stats');
+    if (!s) { el.innerHTML = '<div class="mute">Search statistics appear when the computer searches.</div>'; return; }
+    var saved = s.m ? Math.round((1 - s.a / s.m) * 100) : 0;
+    el.innerHTML =
+      '<div class="lbl">Last computer search (from ply ' + s.ply + ')</div>' +
+      '<div>' + (G.ab ? '' : '▶ ') + 'Minimax: <b>' + s.m.toLocaleString() + '</b> positions' + '</div>' +
+      '<div>' + (G.ab ? '▶ ' : '') + 'Alpha–Beta: <b>' + s.a.toLocaleString() + '</b> positions (' + saved + '% fewer)</div>';
+  }
+
+  function tags(o) {
+    var t = '';
+    if (o.root) t += '<span class="pill root">ROOT</span>';
+    if (o.current) t += '<span class="pill cur">CURRENT</span>';
+    if (o.ai) t += '<span class="pill ai">AI CHOICE</span>';
+    if (o.human) t += '<span class="pill human">HUMAN MOVE</span>';
+    return t;
+  }
+
+  function miniBoard(s, last) {
+    var h = '<div class="mb">';
+    for (var i = 0; i < 9; i++) h += '<i class="' + (s[i] ? 'm' + s[i] : '') + (i === last ? ' last' : '') + '">' + s[i] + '</i>';
+    return h + '</div>';
+  }
+
+  function card(n, o) {
+    var title, mover;
+    if (n.term) title = n.term === 'Tie' ? 'Draw' : mk(n.term) + ' wins';
+    else {
+      mover = turnMark(n.ply);
+      title = mk(mover) + ' to move <span class="role m' + mover + '">' + (mover === 'O' ? 'MAX' : 'MIN') + '</span>';
+    }
+    var h = '<div class="card' + (o.root ? ' root' : '') + (o.current ? ' current' : '') +
+            (o.ai ? ' ai' : '') + (o.human ? ' human' : '') + '"' + (o.current ? ' id="curCard"' : '') + '>';
+    h += miniBoard(n.state, n.move);
+    h += '<div class="info"><div class="t1">' + title + '</div>';
+    h += '<div>score <b class="sc">' + fmt(n.value) + '</b><span class="ply">ply ' + n.ply + '</span></div>';
+    if (G.ab && n.win) h += '<div class="win-w">[α ' + fmt(n.win[0]) + ', β ' + fmt(n.win[1]) + ']</div>';
+    if (n.children) {
+      var pr = n.children.filter(function (c) { return c.pruned; }).length;
+      if (pr) h += '<div class="win-w">✂ ' + pr + ' pruned</div>';
+    }
+    h += tags(o) + '</div>';
+    if (o.tree && !n.term) {
+      h += '<button class="tg" type="button" data-id="' + n.id + '" aria-expanded="' + (!!n.open) + '" title="Expand / collapse">' +
+           (n.open ? '▾' : '▸ ' + (9 - n.ply)) + '</button>';
+    }
+    return h + '</div>';
+  }
+
+  function childrenHTML(n, rel) {
+    if (n.term) return '';
+    if (rel === 0) n.open = true;
+    else if (n.open === undefined) n.open = rel < G.depthShow;
+    if (!n.open) return '';
+    expandNode(n, rel === 0);
+    var h = '<ul class="tree">';
+    n.children.forEach(function (c) {
+      var edge = '<span class="edge">' + mk(c.mark) + ' → cell ' + c.move + '</span>';
+      if (c.pruned) {
+        h += '<li><div class="row">' + edge + '<div class="card pruned">' + miniBoard(c.state, c.move) +
+             '<div class="info"><div class="t1">✂ PRUNED</div><div class="win-w">β ≤ α — never searched</div></div></div></div></li>';
+      } else {
+        if (c.open === undefined) c.open = (rel + 1) < G.depthShow;
+        h += '<li><div class="row">' + edge + card(c, { tree: true }) + '</div>' + childrenHTML(c, rel + 1) + '</li>';
+      }
+    });
+    return h + '</ul>';
+  }
+
+  function renderPanel(focus) {
+    var p = $('panel'), prev = p.scrollTop, h = '';
+    if (G.phase === 'setup') {
+      p.innerHTML = '<div class="empty">Choose who opens (Human or Computer) and press <b>Start</b>. The tree begins as a single node: the empty board.</div>';
+      return;
+    }
+    var last = G.spine.length - 1, lh = -1, la = -1;
+    G.spine.forEach(function (e, i) { if (e.by === 'human') lh = i; if (e.by === 'ai') la = i; });
+    G.spine.forEach(function (e, i) {
+      if (i > 0) h += '<div class="sp-edge">↓ ' + mk(e.node.mark) + ' → cell ' + e.node.move +
+                      ' <span class="mute">(' + (e.by === 'ai' ? 'computer' : 'human') + ' move)</span></div>';
+      h += card(e.node, { root: i === 0, current: i === last, human: i === lh, ai: i === la });
+    });
+    if (G.phase === 'ai') {
+      h += '<div class="fwd-label">Candidate moves for ' + mk('X') + ' (MIN) — forward search from the current node:</div>';
+      h += childrenHTML(G.forward.root, 0);
+    } else if (G.phase === 'human') {
+      h += '<div class="fwd-label mute">Human to move — the forward search is rebuilt from this node after ' + mk('O') + ' plays.</div>';
+    } else {
+      h += '<div class="fwd-label mute">Game over — no further search.</div>';
+    }
+    p.innerHTML = h;
+    if (focus) {
+      var el = $('curCard');
+      if (el) p.scrollTop = Math.max(0, el.getBoundingClientRect().top - p.getBoundingClientRect().top + p.scrollTop - 96);
+      else p.scrollTop = 0;
+    } else p.scrollTop = prev;
+  }
+
+  function renderAll(focus) { renderBoard(); renderTurn(); renderControls(); renderPanel(focus); }
+
+  /* ---------- events ---------- */
+  $('start').addEventListener('click', startGame);
+  $('restart').addEventListener('click', restart);
+  $('aiMove').addEventListener('click', playAi);
+
+  $('abToggle').addEventListener('change', function () {
+    G.ab = this.checked;
+    if (G.phase === 'ai') rebuildForward();
+    renderControls(); renderPanel(false);
+  });
+  $('timing').addEventListener('change', function () {
+    G.auto = this.value === 'auto';
+    clearTimer();
+    if (G.phase === 'ai') scheduleAuto();
+    renderTurn(); renderControls();
+  });
+  function resetExpansion() {
+    G.nodes.forEach(function (n) { n.open = undefined; });
+    renderPanel(false);
+  }
+  $('depth').addEventListener('change', function () { G.depthShow = +this.value; resetExpansion(); });
+  $('resetExp').addEventListener('click', resetExpansion);
+
+  $('panel').addEventListener('click', function (e) {
+    var t = e.target.closest('[data-id]');
+    if (!t) return;
+    var n = G.nodes.get(+t.getAttribute('data-id'));
+    if (!n) return;
+    n.open = !n.open;
+    renderPanel(false);
+  });
+
+  renderAll(true);
+
+  // test hook (harmless in normal use)
+  window.__ttt = { G: G, humanMove: humanMove, playAi: playAi, startGame: startGame, restart: restart };
+})();
+</script>
+</body>
+</html>
