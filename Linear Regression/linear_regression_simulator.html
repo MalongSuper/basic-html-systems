@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Linear Regression Simulator</title>
+<style>
+:root{
+  --bg:#ffffff; --panel:#ffffff; --ink:#000000; --muted:#000000; --line:#cfcfcf;
+  --grid:#e6e6e6; --axis:#000000; --blue:#2563eb; --red:#dc2626; --purple:#7c3aed; --soft:#f2f2f2;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--bg); color:var(--ink);
+}
+.app{
+  display:grid; grid-template-columns:minmax(300px,370px) 1fr; gap:16px;
+  padding:16px; max-width:1500px; margin:0 auto; min-height:100vh;
+}
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px}
+
+/* ---------- left side ---------- */
+.side{display:flex; flex-direction:column; gap:12px; height:calc(100vh - 32px); position:sticky; top:16px}
+h1{font-size:17px; margin:0; letter-spacing:.2px}
+.sub{color:var(--muted); font-size:12.5px; margin:2px 0 0}
+.seg{display:grid; grid-template-columns:1fr 1fr; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:3px; gap:3px}
+.seg button{
+  border:2px solid transparent; background:transparent; color:var(--ink); padding:7px 6px; border-radius:8px;
+  font:inherit; font-weight:600; cursor:pointer;
+}
+.seg button:hover{background:var(--soft)}
+.seg button.on{background:var(--panel); border-color:var(--ink)}
+.row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+.row label{font-weight:600}
+input[type=number]{
+  font:inherit; color:var(--ink); background:var(--panel); border:1px solid var(--line);
+  border-radius:8px; padding:6px 8px; width:100%; min-width:0;
+}
+input[type=number]:focus{outline:2px solid var(--blue); outline-offset:-1px}
+#count{width:90px; text-align:right}
+.status{color:var(--muted); font-size:12.5px; margin-top:-6px}
+.tablewrap{flex:1; min-height:160px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+table{border-collapse:separate; border-spacing:0; width:100%}
+th{
+  position:sticky; top:0; background:var(--panel); z-index:1; font-size:12px; letter-spacing:.6px;
+  color:var(--muted); padding:7px 6px; text-align:center; border-bottom:1px solid var(--line);
+}
+td{padding:3px 4px; border-bottom:1px solid var(--grid)}
+td.idx{color:var(--muted); text-align:center; font-size:12px; width:30px}
+td input{border-color:transparent; background:transparent; text-align:center; padding:5px 4px}
+td input:hover{border-color:var(--line)}
+td input:focus{background:var(--panel)}
+button.del{
+  border:0; background:transparent; color:var(--muted); font-size:18px; line-height:1;
+  cursor:pointer; padding:2px 8px; border-radius:6px;
+}
+button.del:hover{background:var(--soft); color:var(--red)}
+.btns{display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:8px}
+.btn{
+  font:inherit; font-weight:600; border:1px solid var(--line); background:var(--panel); color:var(--ink);
+  padding:8px 6px; border-radius:9px; cursor:pointer;
+}
+.btn:hover{background:var(--soft)}
+.btn.primary{border-color:var(--ink)}
+
+/* ---------- right side ---------- */
+main{display:flex; flex-direction:column; gap:16px; min-width:0}
+.plothead{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; flex-wrap:wrap}
+.plothead b{font-size:15px}
+.opts{display:flex; align-items:center; gap:14px}
+.opts label{display:flex; align-items:center; gap:6px; color:var(--muted); cursor:pointer; user-select:none}
+.opts .btn{padding:5px 10px; font-weight:500}
+.legend{display:flex; gap:14px; color:var(--muted); font-size:12.5px}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:-1px}
+.legend i.l{width:16px; height:3px; border-radius:2px; vertical-align:3px}
+.canvaswrap{
+  position:relative; height:clamp(340px,62vh,660px); border-radius:10px; overflow:hidden;
+  background:var(--panel); border:1px solid var(--line);
+}
+canvas{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none}
+.tip{
+  position:absolute; display:none; pointer-events:none; z-index:5; background:#fff; color:#000;
+  font-size:12.5px; line-height:1.5; padding:7px 10px; border-radius:8px; white-space:nowrap;
+  border:1px solid #000;
+}
+.plotfoot{display:flex; justify-content:space-between; gap:12px; margin-top:8px; color:var(--muted); font-size:12.5px; flex-wrap:wrap}
+.plotfoot #cursor{font-variant-numeric:tabular-nums}
+
+.stats{display:grid; grid-template-columns:1fr minmax(260px,340px); gap:24px; align-items:center}
+.eq{font-size:17px; font-weight:600; margin-bottom:10px; overflow-wrap:anywhere}
+.eq small{display:block; color:var(--muted); font-weight:500; font-size:12px; margin-bottom:2px}
+.chips{display:flex; flex-wrap:wrap; gap:8px}
+.chip{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-size:12.5px; color:var(--ink)}
+.chip b{color:var(--ink); margin-left:6px; font-variant-numeric:tabular-nums}
+.corr{text-align:right; border-left:1px solid var(--line); padding-left:24px}
+.corr .lbl{color:var(--muted); font-size:12.5px; font-weight:600; letter-spacing:.3px}
+.corr .val{font-size:46px; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; margin:2px 0 4px}
+.corr .desc{color:var(--muted); font-size:13px; min-height:18px}
+.gauge{position:relative; height:8px; border-radius:4px; margin:10px 0 2px;
+  background:var(--panel); border:1px solid var(--ink)}
+.gauge i{position:absolute; top:-4px; width:4px; height:16px; background:var(--ink); border-radius:2px; transform:translateX(-50%); transition:left .2s}
+.gauge-labels{display:flex; justify-content:space-between; color:var(--muted); font-size:11px}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{height:auto; position:static}
+  .tablewrap{max-height:320px; flex:none}
+  .stats{grid-template-columns:1fr}
+  .corr{border-left:0; padding-left:0; border-top:1px solid var(--line); padding-top:14px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= INPUT (left) ================= -->
+  <aside class="panel side">
+    <div>
+      <h1>Linear Regression Simulator</h1>
+      <p class="sub">Edit the table, drag points, and watch the fit update live.</p>
+    </div>
+
+    <div class="seg" role="group" aria-label="Visualization mode">
+      <button type="button" data-mode="2d" class="on">2D &nbsp;(X, Y)</button>
+      <button type="button" data-mode="3d">3D &nbsp;(X, Y, Z)</button>
+    </div>
+
+    <div class="row">
+      <label for="count">Number of records</label>
+      <input id="count" type="number" min="0" max="500" step="1" value="10">
+    </div>
+    <div class="status" id="status"></div>
+
+    <div class="tablewrap">
+      <table>
+        <thead id="thead"></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="btns">
+      <button type="button" class="btn primary" id="add">+ Add record</button>
+      <button type="button" class="btn" id="rand">Random</button>
+      <button type="button" class="btn" id="clear">Clear</button>
+    </div>
+  </aside>
+
+  <!-- ================= SIMULATION (right) ================= -->
+  <main>
+    <section class="panel">
+      <div class="plothead">
+        <b id="plotTitle">Scatter plot &amp; regression line</b>
+        <div class="opts">
+          <span class="legend"><span><i style="background:var(--blue)"></i>Data</span><span><i class="l" style="background:var(--red)"></i><span id="legendFit">Regression line</span></span><span id="legendErr" hidden><i class="l" style="background:var(--purple)"></i>Error line</span></span>
+          <label><input type="checkbox" id="resid"> Show error lines</label>
+          <button type="button" class="btn" id="resetView" hidden>Reset view</button>
+        </div>
+      </div>
+      <div class="canvaswrap" id="wrap">
+        <canvas id="cv"></canvas>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div class="plotfoot">
+        <span id="hint"></span>
+        <span id="cursor"></span>
+      </div>
+    </section>
+
+    <section class="panel stats">
+      <div>
+        <div class="eq"><small id="eqLabel">Fitted model</small><span id="eq">—</span></div>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="corr">
+        <div class="lbl" id="rlabel">Correlation coefficient (r)</div>
+        <div class="val" id="rval">—</div>
+        <div class="desc" id="rdesc"></div>
+        <div id="gaugeBox">
+          <div class="gauge"><i id="gmark" style="left:50%"></i></div>
+          <div class="gauge-labels"><span>−1</span><span>0</span><span>+1</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d'), wrap = $('wrap'), tip = $('tip');
+const tbody = $('tbody'), thead = $('thead'), countEl = $('count');
+
+const state = {
+  mode: '2d',
+  data: { '2d': [], '3d': [] },     // rows: {x,y,z} numbers or null
+  resid: false,
+  yaw: -0.7, pitch: 0.45, zoom: 1,   // 3D camera
+  hover: null, drag: null, rot: null, frozen: null
+};
+let W = 0, H = 0, model = null, geo = null, proj3 = [];
+
+/* ------------------------------------------------------------------ helpers */
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const r2 = v => Math.round(v * 100) / 100;
+const cols = () => state.mode === '2d' ? ['x', 'y'] : ['x', 'y', 'z'];
+const cur = () => state.data[state.mode];
+const fmt = (v, d = 4) => {
+  if (!isFinite(v)) return '—';
+  if (v === 0) return '0';
+  const a = Math.abs(v);
+  if (a >= 1e7 || a < 1e-4) return v.toExponential(2);
+  return String(+v.toPrecision(d));
+};
+const sgn = v => v < 0 ? '−' : '+';
+const sfmt = v => (v < 0 ? '−' : '+') + fmt(Math.abs(v));
+
+function rng32(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function sample(mode, n, rand, randomParams) {
+  const g = () => Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+  const rows = [];
+  if (mode === '2d') {
+    const a = randomParams ? (rand() * 2 - 1) * 5 : 1;
+    const b = randomParams ? (rand() < .5 ? -1 : 1) * (0.5 + rand() * 3) : 2;
+    const s = randomParams ? 0.5 + rand() * 3 : 1.5;
+    for (let i = 0; i < n; i++) {
+      const x = r2(rand() * 10);
+      rows.push({ x, y: r2(a + b * x + s * g()), z: null });
+    }
+  } else {
+    const a = randomParams ? (rand() * 2 - 1) * 5 : 3;
+    const b1 = randomParams ? (rand() < .5 ? -1 : 1) * (0.5 + rand() * 2.5) : 1.5;
+    const b2 = randomParams ? (rand() < .5 ? -1 : 1) * (0.5 + rand() * 2.5) : -1;
+    const s = randomParams ? 1 + rand() * 4 : 2.5;
+    for (let i = 0; i < n; i++) {
+      const x = r2(rand() * 10), y = r2(rand() * 10);
+      rows.push({ x, y, z: r2(a + b1 * x + b2 * y + s * g()) });
+    }
+  }
+  return rows;
+}
+
+/* ------------------------------------------------------------------ regression */
+function validPts() {
+  const cs = cols(), out = [];
+  cur().forEach((r, i) => {
+    if (cs.every(c => r[c] !== null && isFinite(r[c]))) out.push({ i, x: r.x, y: r.y, z: r.z });
+  });
+  return out;
+}
+
+function errs(pts, resid) {
+  let se = 0, ae = 0;
+  for (const p of pts) { const e = resid(p); se += e * e; ae += Math.abs(e); }
+  const mse = se / pts.length;
+  return { mse, mae: ae / pts.length, rmse: Math.sqrt(mse) };
+}
+
+function fit() {
+  const pts = validPts(), n = pts.length;
+  const mean = k => pts.reduce((s, p) => s + p[k], 0) / n;
+
+  if (state.mode === '2d') {
+    const m = { mode: '2d', pts, n, ok: false, reason: '' };
+    if (n < 2) { m.reason = 'Add at least 2 complete points to fit a line.'; return m; }
+    const mx = mean('x'), my = mean('y');
+    let sxx = 0, sxy = 0, syy = 0;
+    for (const p of pts) { const dx = p.x - mx, dy = p.y - my; sxx += dx * dx; sxy += dx * dy; syy += dy * dy; }
+    if (sxx < 1e-12) { m.reason = 'All X values are identical — a line y = f(x) can’t be fitted.'; return m; }
+    m.b = sxy / sxx; m.a = my - m.b * mx;
+    m.r = syy > 1e-12 ? clamp(sxy / Math.sqrt(sxx * syy), -1, 1) : NaN;
+    m.r2 = isFinite(m.r) ? m.r * m.r : NaN;
+    Object.assign(m, errs(pts, p => p.y - (m.a + m.b * p.x)));
+    m.ok = true;
+    return m;
+  }
+
+  const m = { mode: '3d', pts, n, ok: false, reason: '' };
+  if (n < 3) { m.reason = 'Add at least 3 complete points to fit a plane.'; return m; }
+  const mx = mean('x'), my = mean('y'), mz = mean('z');
+  let sxx = 0, syy = 0, szz = 0, sxy = 0, sxz = 0, syz = 0;
+  for (const p of pts) {
+    const dx = p.x - mx, dy = p.y - my, dz = p.z - mz;
+    sxx += dx * dx; syy += dy * dy; szz += dz * dz; sxy += dx * dy; sxz += dx * dz; syz += dy * dz;
+  }
+  const det = sxx * syy - sxy * sxy;
+  if (sxx < 1e-12 || syy < 1e-12 || det <= 1e-9 * sxx * syy) {
+    m.reason = 'X and Y points are collinear — a plane can’t be determined.'; return m;
+  }
+  m.b1 = (sxz * syy - syz * sxy) / det;
+  m.b2 = (syz * sxx - sxz * sxy) / det;
+  m.a = mz - m.b1 * mx - m.b2 * my;
+  if (szz > 1e-12) {
+    m.r2 = clamp((m.b1 * sxz + m.b2 * syz) / szz, 0, 1);
+    m.r = Math.sqrt(m.r2);
+    m.rxz = sxz / Math.sqrt(sxx * szz);
+    m.ryz = syz / Math.sqrt(syy * szz);
+  } else { m.r = NaN; m.r2 = NaN; m.rxz = NaN; m.ryz = NaN; }
+  m.rxy = sxy / Math.sqrt(sxx * syy);
+  Object.assign(m, errs(pts, p => p.z - (m.a + m.b1 * p.x + m.b2 * p.y)));
+  m.ok = true;
+  return m;
+}
+
+/* ------------------------------------------------------------------ table */
+function rebuildTable() {
+  const cs = cols(), rows = cur();
+  thead.innerHTML = '<tr><th>#</th>' + cs.map(c => `<th>${c.toUpperCase()}</th>`).join('') + '<th></th></tr>';
+  tbody.innerHTML = '';
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    let h = `<td class="idx">${i + 1}</td>`;
+    cs.forEach(c => {
+      h += `<td><input type="number" step="any" data-i="${i}" data-k="${c}" value="${r[c] === null ? '' : r[c]}" aria-label="${c.toUpperCase()} of record ${i + 1}"></td>`;
+    });
+    h += `<td><button type="button" class="del" data-del="${i}" title="Delete record" aria-label="Delete record ${i + 1}">×</button></td>`;
+    tr.innerHTML = h;
+    tbody.appendChild(tr);
+  });
+  countEl.value = rows.length;
+}
+
+function syncRow(i) {
+  const tr = tbody.rows[i]; if (!tr) return;
+  const r = cur()[i];
+  tr.querySelectorAll('input').forEach(inp => { inp.value = r[inp.dataset.k] === null ? '' : r[inp.dataset.k]; });
+}
+
+function emptyRow() { return { x: null, y: null, z: null }; }
+
+tbody.addEventListener('input', e => {
+  const t = e.target; if (!t.matches('input')) return;
+  const v = parseFloat(t.value);
+  cur()[+t.dataset.i][t.dataset.k] = isFinite(v) ? v : null;
+  update();
+});
+tbody.addEventListener('click', e => {
+  const b = e.target.closest('[data-del]'); if (!b) return;
+  cur().splice(+b.dataset.del, 1);
+  rebuildTable(); update();
+});
+tbody.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !e.target.matches('input')) return;
+  e.preventDefault();
+  const i = +e.target.dataset.i, k = e.target.dataset.k;
+  if (i === cur().length - 1) addRow(k); else {
+    const nxt = tbody.querySelector(`input[data-i="${i + 1}"][data-k="${k}"]`);
+    if (nxt) { nxt.focus(); nxt.select(); }
+  }
+});
+
+function addRow(focusKey) {
+  if (cur().length >= 500) return;
+  cur().push(emptyRow());
+  rebuildTable(); update();
+  const wrapEl = document.querySelector('.tablewrap');
+  wrapEl.scrollTop = wrapEl.scrollHeight;
+  const inp = tbody.querySelector(`input[data-i="${cur().length - 1}"][data-k="${focusKey || 'x'}"]`);
+  if (inp) inp.focus();
+}
+
+$('add').onclick = () => addRow();
+$('clear').onclick = () => { state.data[state.mode] = []; rebuildTable(); update(); };
+$('rand').onclick = () => {
+  const n = clamp(cur().length || 12, 3, 500);
+  state.data[state.mode] = sample(state.mode, n, Math.random, true);
+  rebuildTable(); update();
+};
+countEl.addEventListener('change', () => {
+  let n = parseInt(countEl.value, 10);
+  n = isFinite(n) ? clamp(n, 0, 500) : cur().length;
+  const rows = cur();
+  while (rows.length < n) rows.push(emptyRow());
+  rows.length = n;
+  rebuildTable(); update();
+});
+countEl.addEventListener('keydown', e => { if (e.key === 'Enter') countEl.blur(); });
+
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+$('resid').onchange = e => { state.resid = e.target.checked; $('legendErr').hidden = !state.resid; draw(); };
+$('resetView').onclick = () => { state.yaw = -0.7; state.pitch = 0.45; state.zoom = 1; draw(); };
+
+function setMode(m) {
+  if (m === state.mode) return;
+  state.mode = m; state.hover = null; state.frozen = null; state.drag = null;
+  document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  $('resetView').hidden = m !== '3d';
+  $('legendFit').textContent = m === '2d' ? 'Regression line' : 'Regression plane';
+  $('hint').textContent = m === '2d'
+    ? 'Hover a point or the line · drag a point to move it'
+    : 'Drag to rotate · scroll to zoom · hover a point for coordinates';
+  $('cursor').textContent = '';
+  hideTip();
+  rebuildTable(); update();
+}
+
+/* ------------------------------------------------------------------ stats panel */
+function describe(r, multi) {
+  if (!isFinite(r)) return '';
+  const a = Math.abs(r);
+  const s = a >= .9 ? 'Very strong' : a >= .7 ? 'Strong' : a >= .5 ? 'Moderate' : a >= .3 ? 'Weak' : 'Very weak';
+  if (multi) return `${s} fit — X and Y ${a >= .5 ? 'explain much of' : 'explain little of'} Z`;
+  if (a < .1) return 'No linear relationship';
+  return `${s} ${r > 0 ? 'positive' : 'negative'} linear relationship`;
+}
+const chip = (l, v) => `<div class="chip">${l}<b>${v}</b></div>`;
+
+function updateStats() {
+  const m = model, is2 = m.mode === '2d';
+  $('rlabel').textContent = is2 ? 'Correlation coefficient (r)' : 'Multiple correlation coefficient (R)';
+  $('eqLabel').textContent = is2 ? 'Fitted line' : 'Fitted plane';
+  $('gaugeBox').style.display = is2 ? '' : 'none';
+  let chips = chip('Points used', m.n);
+  if (!m.ok) {
+    $('eq').textContent = '—';
+    $('rval').textContent = '—';
+    $('rdesc').textContent = m.reason;
+    $('chips').innerHTML = chips;
+    $('gmark').style.left = '50%';
+    return;
+  }
+  if (is2) {
+    $('eq').textContent = `ŷ = ${fmt(m.b)}x ${sgn(m.a)} ${fmt(Math.abs(m.a))}`;
+    chips += chip('Slope', fmt(m.b)) + chip('Intercept', fmt(m.a)) + chip('R²', fmt(m.r2)) +
+             chip('MSE', fmt(m.mse)) + chip('MAE', fmt(m.mae)) + chip('RMSE', fmt(m.rmse));
+    $('rdesc').textContent = isFinite(m.r) ? describe(m.r) : 'Y has no variation, so r is undefined';
+    $('gmark').style.left = ((isFinite(m.r) ? m.r : 0) + 1) / 2 * 100 + '%';
+  } else {
+    $('eq').textContent = `ẑ = ${fmt(m.a)} ${sgn(m.b1)} ${fmt(Math.abs(m.b1))}x ${sgn(m.b2)} ${fmt(Math.abs(m.b2))}y`;
+    chips += chip('b₁ (X)', fmt(m.b1)) + chip('b₂ (Y)', fmt(m.b2)) + chip('Intercept', fmt(m.a)) + chip('R²', fmt(m.r2)) +
+             chip('MSE', fmt(m.mse)) + chip('MAE', fmt(m.mae)) + chip('RMSE', fmt(m.rmse)) +
+             chip('r(X,Z)', fmt(m.rxz)) + chip('r(Y,Z)', fmt(m.ryz)) + chip('r(X,Y)', fmt(m.rxy));
+    $('rdesc').textContent = isFinite(m.r) ? describe(m.r, true) : 'Z has no variation, so R is undefined';
+  }
+  $('rval').textContent = isFinite(m.r) ? m.r.toFixed(4) : '—';
+  $('chips').innerHTML = chips;
+}
+
+function update() {
+  model = fit();
+  state.hover = null; hideTip();
+  const total = cur().length;
+  $('status').textContent = `${model.n} of ${total} record${total === 1 ? '' : 's'} complete and plotted`;
+  updateStats();
+  draw();
+}
+
+/* ------------------------------------------------------------------ drawing */
+function theme() {
+  const s = getComputedStyle(document.documentElement), g = n => s.getPropertyValue(n).trim();
+  return { ink: g('--ink'), muted: g('--muted'), grid: g('--grid'), axis: g('--axis'), blue: g('--blue'), red: g('--red'), purple: g('--purple'), panel: g('--panel') };
+}
+
+function niceTicks(min, max, count) {
+  if (!(max - min > 1e-12)) { min -= 1; max += 1; }
+  const step0 = (max - min) / count, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const norm = step0 / mag, step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const ticks = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-9; v += step) ticks.push(+v.toFixed(12));
+  return { ticks, step };
+}
+const tickFmt = (v, step) => {
+  const dec = Math.max(0, -Math.floor(Math.log10(step) + 1e-9));
+  return Math.abs(v) >= 1e6 ? v.toExponential(1) : v.toFixed(Math.min(dec, 6));
+};
+
+function draw() {
+  if (!W || !model) return;
+  ctx.clearRect(0, 0, W, H);
+  const th = theme();
+  state.mode === '2d' ? draw2d(th) : draw3d(th);
+}
+
+function note(th, text) {
+  ctx.fillStyle = th.muted; ctx.font = '13px system-ui,sans-serif';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(text, 16, 14);
+}
+
+/* ---------- 2D ---------- */
+function domain2d(pts) {
+  if (!pts.length) return { x0: 0, x1: 10, y0: 0, y1: 10 };
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const p of pts) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+  if (x1 - x0 < 1e-12) { x0 -= 1; x1 += 1; }
+  if (y1 - y0 < 1e-12) { y0 -= 1; y1 += 1; }
+  const px = (x1 - x0) * .1, py = (y1 - y0) * .12;
+  return { x0: x0 - px, x1: x1 + px, y0: y0 - py, y1: y1 + py };
+}
+
+function draw2d(th) {
+  const m = model, pts = m.pts;
+  const M = { l: 58, r: 20, t: 16, b: 46 };
+  const d = state.frozen || domain2d(pts);
+  const pw = W - M.l - M.r, ph = H - M.t - M.b;
+  const X = x => M.l + (x - d.x0) / (d.x1 - d.x0) * pw;
+  const Y = y => M.t + ph - (y - d.y0) / (d.y1 - d.y0) * ph;
+  geo = { d, M, pw, ph, X, Y,
+    ix: px => d.x0 + (px - M.l) / pw * (d.x1 - d.x0),
+    iy: py => d.y0 + (M.t + ph - py) / ph * (d.y1 - d.y0) };
+
+  const tx = niceTicks(d.x0, d.x1, Math.max(3, Math.floor(pw / 90)));
+  const ty = niceTicks(d.y0, d.y1, Math.max(3, Math.floor(ph / 60)));
+
+  ctx.lineWidth = 1; ctx.font = '11.5px system-ui,sans-serif';
+  ctx.fillStyle = th.muted; ctx.strokeStyle = th.grid;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (const t of tx.ticks) {
+    const x = Math.round(X(t)) + .5;
+    ctx.beginPath(); ctx.moveTo(x, M.t); ctx.lineTo(x, M.t + ph); ctx.stroke();
+    ctx.fillText(tickFmt(t, tx.step), x, M.t + ph + 8);
+  }
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const t of ty.ticks) {
+    const y = Math.round(Y(t)) + .5;
+    ctx.beginPath(); ctx.moveTo(M.l, y); ctx.lineTo(M.l + pw, y); ctx.stroke();
+    ctx.fillText(tickFmt(t, ty.step), M.l - 8, y);
+  }
+  ctx.strokeStyle = th.axis; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(M.l, M.t); ctx.lineTo(M.l, M.t + ph); ctx.lineTo(M.l + pw, M.t + ph); ctx.stroke();
+
+  ctx.fillStyle = th.ink; ctx.font = 'bold 13px system-ui,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('X', M.l + pw / 2, H - 4);
+  ctx.save(); ctx.translate(14, M.t + ph / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top'; ctx.fillText('Y', 0, -4); ctx.restore();
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(M.l, M.t, pw, ph); ctx.clip();
+
+  if (m.ok) {
+    if (state.resid) {
+      ctx.strokeStyle = th.purple; ctx.lineWidth = 2;
+      for (const p of pts) { ctx.beginPath(); ctx.moveTo(X(p.x), Y(p.y)); ctx.lineTo(X(p.x), Y(m.a + m.b * p.x)); ctx.stroke(); }
+    }
+    ctx.strokeStyle = th.red; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(X(d.x0), Y(m.a + m.b * d.x0)); ctx.lineTo(X(d.x1), Y(m.a + m.b * d.x1)); ctx.stroke();
+  }
+
+  const hp = state.hover && state.hover.type === 'pt' ? state.hover.q.i : -1;
+  for (const p of pts) {
+    const hot = p.i === hp;
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), hot ? 8 : 6, 0, 7);
+    ctx.fillStyle = th.blue; ctx.fill();
+    ctx.lineWidth = hot ? 2.5 : 1.5; ctx.strokeStyle = hot ? th.ink : th.panel; ctx.stroke();
+  }
+  if (m.ok && state.hover && state.hover.type === 'line') {
+    const x = state.hover.x;
+    ctx.beginPath(); ctx.arc(X(x), Y(m.a + m.b * x), 6, 0, 7);
+    ctx.fillStyle = th.panel; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = th.red; ctx.stroke();
+  }
+  ctx.restore();
+
+  if (!m.ok) note(th, m.reason);
+}
+
+function hit2d(p) {
+  if (!geo || !model) return null;
+  const { M, pw, ph, X, Y, d } = geo;
+  let best = null, bd = 12;
+  for (const q of model.pts) {
+    const dist = Math.hypot(X(q.x) - p.x, Y(q.y) - p.y);
+    if (dist < bd) { bd = dist; best = q; }
+  }
+  if (best) return { type: 'pt', q: best };
+  if (model.ok && p.x >= M.l && p.x <= M.l + pw && p.y >= M.t && p.y <= M.t + ph) {
+    const ax = X(d.x0), ay = Y(model.a + model.b * d.x0), bx = X(d.x1), by = Y(model.a + model.b * d.x1);
+    const dist = Math.abs((bx - ax) * (ay - p.y) - (ax - p.x) * (by - ay)) / Math.hypot(bx - ax, by - ay);
+    if (dist < 9) return { type: 'line', x: geo.ix(p.x) };
+  }
+  return null;
+}
+
+/* ---------- 3D ---------- */
+function draw3d(th) {
+  const m = model, pts = m.pts;
+  const padR = (lo, hi, f) => {
+    if (!isFinite(lo)) { lo = 0; hi = 10; }
+    if (hi - lo < 1e-12) { lo -= 1; hi += 1; }
+    const p = (hi - lo) * f; return [lo - p, hi + p];
+  };
+  const ext = k => { let lo = Infinity, hi = -Infinity; for (const q of pts) { lo = Math.min(lo, q[k]); hi = Math.max(hi, q[k]); } return [lo, hi]; };
+  const xr = padR(...ext('x'), .08), yr = padR(...ext('y'), .08);
+  let [zlo, zhi] = ext('z');
+  if (m.ok) for (const cx of xr) for (const cy of yr) { const z = m.a + m.b1 * cx + m.b2 * cy; zlo = Math.min(zlo, z); zhi = Math.max(zhi, z); }
+  const zr = padR(zlo, zhi, .05);
+  const nrm = (v, r) => (v - (r[0] + r[1]) / 2) / ((r[1] - r[0]) / 2);
+
+  const cyw = Math.cos(state.yaw), syw = Math.sin(state.yaw), cp = Math.cos(state.pitch), sp = Math.sin(state.pitch);
+  const S = Math.min(W, H) * 0.30 * state.zoom;
+  const proj = (X, Y, Z) => {
+    const x1 = X * cyw - Y * syw, y1 = X * syw + Y * cyw;
+    const up = Z * cp + y1 * sp, dep = y1 * cp - Z * sp, f = 1 / (1 + 0.12 * dep);
+    return { x: W / 2 + x1 * S * f, y: H / 2 - up * S * f, d: dep, f };
+  };
+  const line = (a, b) => { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
+
+  // floor grid
+  ctx.lineWidth = 1; ctx.strokeStyle = th.grid;
+  for (const k of [-1, -.5, 0, .5, 1]) {
+    line(proj(k, -1, -1), proj(k, 1, -1));
+    line(proj(-1, k, -1), proj(1, k, -1));
+  }
+  // axes sit on the far corner so they never cover the data
+  let cX = -1, cY = -1, bestD = -Infinity;
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) { const p = proj(sx, sy, -1); if (p.d > bestD) { bestD = p.d; cX = sx; cY = sy; } }
+  ctx.strokeStyle = th.axis; ctx.lineWidth = 1.5;
+  line(proj(-1, cY, -1), proj(1, cY, -1));
+  line(proj(cX, -1, -1), proj(cX, 1, -1));
+  line(proj(cX, cY, -1), proj(cX, cY, 1));
+
+  const c0 = proj(0, 0, 0);
+  const lab = (p, t, off, bold) => {
+    let vx = p.x - c0.x, vy = p.y - c0.y; const L = Math.hypot(vx, vy) || 1;
+    ctx.fillStyle = bold ? th.ink : th.muted; ctx.font = (bold ? 'bold 13px' : '11px') + ' system-ui,sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(t, p.x + vx / L * off, p.y + vy / L * off);
+  };
+  const axisTicks = (r, at, name) => {
+    const tk = niceTicks(r[0], r[1], 4);
+    for (const t of tk.ticks) { const n = nrm(t, r); if (n >= -1 && n <= 1) lab(at(n), tickFmt(t, tk.step), 13, false); }
+    lab(at(0), name, 32, true);
+  };
+  axisTicks(xr, n => proj(n, cY, -1), 'X');
+  axisTicks(yr, n => proj(cX, n, -1), 'Y');
+  axisTicks(zr, n => proj(cX, cY, n), 'Z');
+
+  // painter's-algorithm items
+  const items = [];
+  proj3 = [];
+  if (m.ok) {
+    const G = 8, V = [];
+    for (let i = 0; i <= G; i++) {
+      V.push([]);
+      for (let j = 0; j <= G; j++) {
+        const x = xr[0] + (xr[1] - xr[0]) * i / G, y = yr[0] + (yr[1] - yr[0]) * j / G;
+        V[i].push(proj(nrm(x, xr), nrm(y, yr), nrm(m.a + m.b1 * x + m.b2 * y, zr)));
+      }
+    }
+    for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) {
+      const q = [V[i][j], V[i + 1][j], V[i + 1][j + 1], V[i][j + 1]];
+      items.push({ d: (q[0].d + q[1].d + q[2].d + q[3].d) / 4, fn() {
+        ctx.beginPath(); ctx.moveTo(q[0].x, q[0].y); for (let k = 1; k < 4; k++) ctx.lineTo(q[k].x, q[k].y); ctx.closePath();
+        ctx.fillStyle = th.red; ctx.globalAlpha = .17; ctx.fill();
+        ctx.strokeStyle = th.red; ctx.globalAlpha = .45; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
+      } });
+    }
+  }
+  const hp = state.hover && state.hover.type === 'pt' ? state.hover.q.i : -1;
+  for (const q of pts) {
+    const p = proj(nrm(q.x, xr), nrm(q.y, yr), nrm(q.z, zr));
+    proj3.push({ x: p.x, y: p.y, q });
+    if (m.ok && state.resid) {
+      const e = proj(nrm(q.x, xr), nrm(q.y, yr), nrm(m.a + m.b1 * q.x + m.b2 * q.y, zr));
+      items.push({ d: (p.d + e.d) / 2, fn() {
+        ctx.strokeStyle = th.purple; ctx.lineWidth = 2;
+        line(p, e);
+      } });
+    }
+    items.push({ d: p.d - 0.001, fn() {
+      const hot = q.i === hp, r = (hot ? 8 : 6) * p.f;
+      ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fillStyle = th.blue; ctx.fill();
+      ctx.lineWidth = hot ? 2.5 : 1.5; ctx.strokeStyle = hot ? th.ink : th.panel; ctx.stroke();
+    } });
+  }
+  items.sort((a, b) => b.d - a.d);
+  for (const it of items) it.fn();
+
+  if (!m.ok) note(th, m.reason);
+}
+
+function hit3d(p) {
+  let best = null, bd = 13;
+  for (const s of proj3) { const dist = Math.hypot(s.x - p.x, s.y - p.y); if (dist < bd) { bd = dist; best = s.q; } }
+  return best ? { type: 'pt', q: best } : null;
+}
+
+/* ------------------------------------------------------------------ tooltip + pointer */
+function hideTip() { tip.style.display = 'none'; }
+function showTip(html, p) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = p.x + 14, y = p.y + 14;
+  if (x + w > W - 4) x = p.x - w - 14;
+  if (y + h > H - 4) y = p.y - h - 14;
+  tip.style.left = Math.max(4, x) + 'px'; tip.style.top = Math.max(4, y) + 'px';
+}
+function tipHtml(h) {
+  const m = model;
+  if (h.type === 'line') {
+    return `<b>Regression line</b><br>x = ${fmt(h.x)}<br>ŷ = ${fmt(m.a + m.b * h.x)}`;
+  }
+  const q = h.q;
+  if (m.mode === '2d') {
+    let s = `<b>Point #${q.i + 1}</b><br>X = ${fmt(q.x)}, Y = ${fmt(q.y)}`;
+    if (m.ok) { const yh = m.a + m.b * q.x; s += `<br>ŷ = ${fmt(yh)} · residual ${sfmt(q.y - yh)}`; }
+    return s;
+  }
+  let s = `<b>Point #${q.i + 1}</b><br>X = ${fmt(q.x)}, Y = ${fmt(q.y)}, Z = ${fmt(q.z)}`;
+  if (m.ok) { const zh = m.a + m.b1 * q.x + m.b2 * q.y; s += `<br>ẑ = ${fmt(zh)} · residual ${sfmt(q.z - zh)}`; }
+  return s;
+}
+const pos = e => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+
+cv.addEventListener('pointerdown', e => {
+  const p = pos(e);
+  if (state.mode === '2d') {
+    const h = hit2d(p);
+    if (h && h.type === 'pt') {
+      state.drag = { i: h.q.i }; state.frozen = geo.d; cv.setPointerCapture(e.pointerId);
+      cv.style.cursor = 'grabbing';
+    }
+  } else {
+    state.rot = { x: p.x, y: p.y, yaw: state.yaw, pitch: state.pitch };
+    state.hover = null; hideTip();
+    cv.setPointerCapture(e.pointerId); cv.style.cursor = 'grabbing';
+  }
+});
+
+cv.addEventListener('pointermove', e => {
+  const p = pos(e);
+  if (state.mode === '2d') {
+    if (state.drag) {
+      const { d } = geo, row = cur()[state.drag.i];
+      row.x = r2(clamp(geo.ix(p.x), d.x0, d.x1));
+      row.y = r2(clamp(geo.iy(p.y), d.y0, d.y1));
+      syncRow(state.drag.i);
+      model = fit(); updateStats();
+      const q = model.pts.find(v => v.i === state.drag.i);
+      state.hover = q ? { type: 'pt', q } : null;
+      draw();
+      if (q) showTip(tipHtml(state.hover), p);
+    } else {
+      const h = hit2d(p);
+      state.hover = h; draw();
+      h ? showTip(tipHtml(h), p) : hideTip();
+      cv.style.cursor = h && h.type === 'pt' ? 'grab' : 'crosshair';
+    }
+    const inside = geo && p.x >= geo.M.l && p.x <= geo.M.l + geo.pw && p.y >= geo.M.t && p.y <= geo.M.t + geo.ph;
+    $('cursor').textContent = inside ? `Cursor: x = ${fmt(geo.ix(p.x), 4)}, y = ${fmt(geo.iy(p.y), 4)}` : '';
+  } else {
+    if (state.rot) {
+      state.yaw = state.rot.yaw + (p.x - state.rot.x) * 0.01;
+      state.pitch = clamp(state.rot.pitch + (p.y - state.rot.y) * 0.008, -1.45, 1.45);
+      draw();
+    } else {
+      const h = hit3d(p);
+      state.hover = h; draw();
+      h ? showTip(tipHtml(h), p) : hideTip();
+      cv.style.cursor = h ? 'pointer' : 'grab';
+    }
+  }
+});
+
+function endDrag() {
+  if (state.drag) { state.drag = null; state.frozen = null; update(); }
+  state.rot = null; cv.style.cursor = state.mode === '2d' ? 'crosshair' : 'grab';
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => {
+  if (state.drag || state.rot) return;
+  state.hover = null; hideTip(); $('cursor').textContent = ''; draw();
+});
+cv.addEventListener('wheel', e => {
+  if (state.mode !== '3d') return;
+  e.preventDefault();
+  state.zoom = clamp(state.zoom * Math.exp(-e.deltaY * 0.001), 0.4, 3);
+  draw();
+}, { passive: false });
+
+/* ------------------------------------------------------------------ boot */
+function resize() {
+  const r = wrap.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+new ResizeObserver(resize).observe(wrap);
+
+state.data['2d'] = sample('2d', 10, rng32(7), false);
+state.data['3d'] = sample('3d', 14, rng32(11), false);
+$('hint').textContent = 'Hover a point or the line · drag a point to move it';
+cv.style.cursor = 'crosshair';
+rebuildTable();
+model = fit();
+update();
+resize();
+})();
+</script>
+</body>
+</html>
