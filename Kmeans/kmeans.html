@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-Means Clustering Simulator</title>
+<style>
+:root{
+  --bg:#ffffff; --card:#ffffff; --ink:#1b1f27; --muted:#586174; --line:#e4e7ec;
+  --accent:#4f46e5; --accent-ink:#fff; --plot:#ffffff; --area:#fafbfd; --grid:#e8ebf0; --axis:#a0a8b8;
+  --warn:#c2410c; --input:#f8f9fb;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.app{display:grid;grid-template-columns:370px minmax(0,1fr);gap:12px;height:100vh;min-height:760px;padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.left{display:flex;flex-direction:column;gap:12px;padding:14px;min-height:0}
+.right{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+h1{font-size:18px;margin:0}
+.sub{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.lbl,.field>span{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+button,select,input{font:inherit;color:var(--ink)}
+button{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+button.primary:hover:not(:disabled){filter:brightness(1.08)}
+input[type=number],select{width:100%;border:1px solid var(--line);background:var(--input);border-radius:8px;padding:6px 8px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 22px;background:transparent;font-weight:600}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
+.table-wrap{flex:1;min-height:180px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse}
+thead th{position:sticky;top:0;background:var(--card);z-index:1;text-align:left;font-size:12px;color:var(--muted);padding:7px 6px;border-bottom:1px solid var(--line)}
+tbody td{padding:3px 4px;border-bottom:1px solid var(--line)}
+tbody tr:hover{background:var(--input)}
+td.idx{color:var(--muted);font-size:12px;white-space:nowrap;padding-left:8px;width:52px}
+td input{padding:4px 6px;border-radius:6px;min-width:0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#999;vertical-align:middle}
+.del{padding:1px 7px;border-radius:6px;color:var(--muted);line-height:1.2}
+.dim2 .zc{display:none}
+.toolbar{padding:12px 14px;display:flex;flex-wrap:wrap;gap:12px 16px;align-items:flex-end}
+.toolbar .field{min-width:0}
+.kbox{display:flex;align-items:center;gap:8px}
+.kbox input{width:70px}
+.hintk{font-size:12px;color:var(--muted)}
+.hintk.warn{color:var(--warn);font-weight:600}
+.toolbar .sp{flex:1}
+.checks{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.checks label{display:flex;align-items:center;gap:5px;cursor:pointer}
+input[type=range]{width:110px;accent-color:var(--accent)}
+.only3{display:none}
+.is3 .only3{display:inline-block}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.stat{flex:1;min-width:130px;padding:9px 14px}
+.stat small{display:block;color:var(--muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.stat b{font-size:17px;font-variant-numeric:tabular-nums}
+.plot{position:relative;flex:1;min-height:520px;overflow:hidden}
+.plot canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hint{position:absolute;left:12px;top:10px;font-size:12px;color:var(--muted);background:color-mix(in srgb,var(--card) 85%,transparent);border:1px solid var(--line);border-radius:8px;padding:4px 9px;pointer-events:none}
+.tip{position:absolute;left:0;top:0;display:none;pointer-events:none;z-index:5;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px 11px;box-shadow:0 6px 22px rgba(0,0,0,.18);font-size:12.5px;line-height:1.5;white-space:nowrap}
+.tip .th{display:flex;align-items:center;gap:7px;margin-bottom:2px;font-size:13px}
+.bottom{padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.legend{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 10px 2px 8px;font-size:12.5px}
+.chip b{font-weight:600;color:var(--muted)}
+.dia{display:inline-block;width:9px;height:9px;transform:rotate(45deg);border:1.5px solid var(--ink);margin:0 2px}
+.readout{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px}
+.readout .val{font-variant-numeric:tabular-nums}
+.readout button{padding:3px 10px;font-size:12px}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;height:auto}
+  .table-wrap{max-height:340px;flex:none}
+  .plot{min-height:460px}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="left card">
+    <div>
+      <h1>K-Means Simulator</h1>
+      <p class="sub">Edit the data, then step through the algorithm.</p>
+    </div>
+
+    <div>
+      <span class="lbl">Visualization</span>
+      <div class="seg" id="dimSeg">
+        <button data-dim="2" class="on">2D</button>
+        <button data-dim="3">3D</button>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <label class="field"><span>Number of records <em id="colHint" style="font-weight:400">(X, Y)</em></span>
+        <input type="number" id="nInput" min="1" max="500" value="60"></label>
+      <label class="field"><span>Random pattern</span>
+        <select id="patSel">
+          <option value="blobs">Clustered blobs</option>
+          <option value="uniform">Uniform scatter</option>
+        </select></label>
+    </div>
+    <div class="btns">
+      <button id="applyN">Apply count</button>
+      <button id="randBtn" class="primary">Randomize</button>
+      <button id="addBtn">+ Add record</button>
+    </div>
+
+    <div class="table-wrap">
+      <table id="tbl" class="dim2">
+        <thead><tr><th>#</th><th>X</th><th>Y</th><th class="zc">Z</th><th></th></tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </aside>
+
+  <main class="right">
+    <section class="bottom card" aria-label="Cluster counts and distance measurement">
+      <div class="legend" id="legend"></div>
+      <div class="readout" id="readout"></div>
+    </section>
+
+    <section class="plot card" id="plot">
+      <canvas id="cv"></canvas>
+      <div class="hint" id="hint"></div>
+      <div class="tip" id="tip"></div>
+    </section>
+
+    <section class="toolbar card" id="toolbar">
+      <div class="field">
+        <span>Centroids (K)</span>
+        <div class="kbox"><input type="number" id="kInput" min="1" max="32" value="3"><span class="hintk" id="kHint"></span></div>
+      </div>
+      <label class="field"><span>Initialization</span>
+        <select id="initSel"><option value="rand">Random samples</option><option value="pp">K-means++</option></select></label>
+      <div class="btns">
+        <button id="stepBtn" class="primary">Step</button>
+        <button id="runBtn">&#9654; Run</button>
+        <button id="resetBtn">Reinitialize</button>
+      </div>
+      <label class="field"><span>Speed</span><input type="range" id="speed" min="1" max="10" value="6"></label>
+      <div class="sp"></div>
+      <div class="checks">
+        <label><input type="checkbox" id="optTrail" checked>Centroid paths</label>
+        <label><input type="checkbox" id="optLinks">Lines to centroid</label>
+        <label><input type="checkbox" id="optEqual" checked>Equal axis scale</label>
+        <button id="viewBtn" class="only3">Reset view</button>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat card"><small>Iteration</small><b id="stIter">0</b></div>
+      <div class="stat card"><small>Inertia (SSE)</small><b id="stSSE">0</b></div>
+      <div class="stat card" style="flex:2"><small>Status</small><b id="stStatus" style="font-size:14px">Ready</b></div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const MAX_K = 32, MAX_N = 500, PAD = 0.06, TAU = Math.PI * 2;
+const NAMES = ['red', 'blue', 'green'];
+const BASE = ['#e53935', '#1e88e5', '#43a047'];
+const EXTRA = ['#fb8c00','#8e24aa','#00acc1','#fdd835','#d81b60','#6d4c41','#3949ab','#7cb342','#00897b','#f4511e','#5e35b1','#c0ca33','#039be5','#ec407a','#8d6e63','#26a69a'];
+const colorOf = i => i < 3 ? BASE[i] : (i - 3 < EXTRA.length ? EXTRA[i - 3] : `hsl(${((i - 3 - EXTRA.length) * 137.5 + 20) % 360} 65% 48%)`);
+const cname = j => 'C' + (j + 1) + (j < 3 ? ` (${NAMES[j]})` : '');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const fmt = (v, d = 3) => { let s = (+v).toFixed(d); if (s.includes('.')) s = s.replace(/\.?0+$/, ''); return s === '-0' ? '0' : s; };
+
+/* ---------- state ---------- */
+const S = {
+  dim: 2, pts: [], K: 3, cents: [], assign: [], dist: [], iter: 0, converged: false, history: [],
+  sel: [], hover: null, tblHover: -1, running: false, timer: 0, warn: '',
+  yaw: -0.6, pitch: 0.4, zoom: 1, trails: true, links: false, equal: true,
+  mouse: { x: 0, y: 0 }, mouseIn: false
+};
+
+/* ---------- elements ---------- */
+const cv = $('#cv'), ctx = cv.getContext('2d'), plot = $('#plot'), tip = $('#tip'), tb = $('#tb');
+let W = 0, H = 0, DPR = 1, raf = 0, hit = [], drag = null;
+let T = theme();
+function theme() {
+  const s = getComputedStyle(document.documentElement), g = n => s.getPropertyValue(n).trim();
+  return { plot: g('--plot'), area: g('--area'), grid: g('--grid'), axis: g('--axis'), muted: g('--muted'), ink: g('--ink'), card: g('--card'), accent: g('--accent') };
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { T = theme(); sched(); });
+
+/* ---------- data generation ---------- */
+const rnd = (a, b) => a + Math.random() * (b - a);
+const r1 = v => Math.round(v * 10) / 10;
+const cl = v => clamp(v, 0, 100);
+function randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+function genPoints(n, pat) {
+  const out = [];
+  if (pat === 'uniform') {
+    for (let i = 0; i < n; i++) out.push({ x: r1(rnd(0, 100)), y: r1(rnd(0, 100)), z: r1(rnd(0, 100)) });
+    return out;
+  }
+  const nb = Math.floor(rnd(2, 6));
+  const cs = Array.from({ length: nb }, () => ({ x: rnd(18, 82), y: rnd(18, 82), z: rnd(18, 82), s: rnd(5, 10) }));
+  for (let i = 0; i < n; i++) {
+    const c = cs[Math.floor(Math.random() * nb)];
+    out.push({ x: r1(cl(c.x + randn() * c.s)), y: r1(cl(c.y + randn() * c.s)), z: r1(cl(c.z + randn() * c.s)) });
+  }
+  return out;
+}
+
+/* ---------- K-Means core ---------- */
+const d2 = (a, b) => { const dx = a.x - b.x, dy = a.y - b.y; return S.dim === 3 ? dx * dx + dy * dy + (a.z - b.z) ** 2 : dx * dx + dy * dy; };
+
+function assignAll() {
+  const n = S.pts.length; let changed = 0;
+  if (S.assign.length !== n) { S.assign = new Array(n).fill(-1); S.dist = new Array(n).fill(0); }
+  for (let i = 0; i < n; i++) {
+    let b = 0, bd = Infinity;
+    for (let j = 0; j < S.cents.length; j++) { const d = d2(S.pts[i], S.cents[j]); if (d < bd) { bd = d; b = j; } }
+    if (S.assign[i] !== b) { changed++; S.assign[i] = b; }
+    S.dist[i] = Math.sqrt(bd);
+  }
+  return changed;
+}
+const snapshot = () => S.cents.map(c => ({ x: c.x, y: c.y, z: c.z }));
+
+function initCentroids() {
+  stopRun();
+  const n = S.pts.length;
+  S.K = Math.max(1, Math.min(S.K, MAX_K, n));
+  let idx = [];
+  if ($('#initSel').value === 'pp') {
+    idx = [Math.floor(Math.random() * n)];
+    const dd = new Array(n).fill(Infinity);
+    while (idx.length < S.K) {
+      const last = S.pts[idx[idx.length - 1]]; let sum = 0;
+      for (let i = 0; i < n; i++) { const d = d2(S.pts[i], last); if (d < dd[i]) dd[i] = d; sum += dd[i]; }
+      let pick = Math.floor(Math.random() * n);
+      if (sum > 0) { let r = Math.random() * sum; pick = n - 1; for (let i = 0; i < n; i++) { r -= dd[i]; if (r <= 0) { pick = i; break; } } }
+      if (idx.includes(pick)) { for (let i = 0; i < n; i++) if (!idx.includes(i)) { pick = i; break; } }
+      idx.push(pick);
+    }
+  } else {
+    const all = [...Array(n).keys()];
+    for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [all[i], all[j]] = [all[j], all[i]]; }
+    idx = all.slice(0, S.K);
+  }
+  S.cents = idx.map(i => ({ x: S.pts[i].x, y: S.pts[i].y, z: S.pts[i].z }));
+  S.history = [snapshot()]; S.iter = 0; S.converged = false; S.hover = null; hideTip();
+  assignAll(); refresh();
+}
+
+function step() {
+  if (S.converged || !S.cents.length) return false;
+  const K = S.cents.length, sum = Array.from({ length: K }, () => ({ x: 0, y: 0, z: 0, n: 0 }));
+  S.pts.forEach((p, i) => { const s = sum[S.assign[i]]; s.x += p.x; s.y += p.y; s.z += p.z; s.n++; });
+  let moved = 0;
+  for (let j = 0; j < K; j++) {
+    const s = sum[j], c = S.cents[j]; if (!s.n) continue;
+    const nc = { x: s.x / s.n, y: s.y / s.n, z: S.dim === 3 ? s.z / s.n : c.z };
+    moved = Math.max(moved, Math.sqrt(d2(c, nc))); c.x = nc.x; c.y = nc.y; c.z = nc.z;
+  }
+  const changed = assignAll();
+  if (moved < 1e-9 && changed === 0) { S.converged = true; return false; }
+  S.iter++; S.history.push(snapshot());
+  if (changed === 0) S.converged = true;
+  return true;
+}
+const inertia = () => S.dist.reduce((a, d) => a + d * d, 0);
+
+/* ---------- running ---------- */
+function stopRun() { S.running = false; clearTimeout(S.timer); }
+function runLoop() {
+  if (!S.running) return;
+  if (S.converged || S.iter >= 300) { S.running = false; refresh(); return; }
+  step(); refresh();
+  S.timer = setTimeout(runLoop, 1100 - +$('#speed').value * 100);
+}
+
+/* ---------- table ---------- */
+function makeRow(p) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="idx"><i class="dot"></i><span class="n"></span></td>
+    <td><input type="number" step="any" data-f="x" value="${p.x}"></td>
+    <td><input type="number" step="any" data-f="y" value="${p.y}"></td>
+    <td class="zc"><input type="number" step="any" data-f="z" value="${p.z}"></td>
+    <td><button class="del" title="Delete record">&times;</button></td>`;
+  return tr;
+}
+function buildTable() {
+  tb.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  S.pts.forEach(p => frag.appendChild(makeRow(p)));
+  tb.appendChild(frag);
+}
+tb.addEventListener('input', e => {
+  const inp = e.target; if (inp.tagName !== 'INPUT') return;
+  const i = inp.closest('tr').sectionRowIndex, v = parseFloat(inp.value);
+  if (!isFinite(v)) return;
+  S.pts[i][inp.dataset.f] = v; S.converged = false; assignAll(); refresh();
+});
+tb.addEventListener('click', e => {
+  if (!e.target.classList.contains('del')) return;
+  if (S.pts.length <= 1) return;
+  const i = e.target.closest('tr').sectionRowIndex;
+  S.pts.splice(i, 1); S.sel = []; S.hover = null; S.tblHover = -1; hideTip(); buildTable();
+  if (S.cents.length > S.pts.length) { S.K = S.pts.length; initCentroids(); }
+  else { S.converged = false; assignAll(); refresh(); }
+});
+tb.addEventListener('mouseover', e => { const tr = e.target.closest('tr'); if (tr && S.tblHover !== tr.sectionRowIndex) { S.tblHover = tr.sectionRowIndex; sched(); } });
+tb.addEventListener('mouseleave', () => { S.tblHover = -1; sched(); });
+
+/* ---------- controls ---------- */
+function applyCount() {
+  let n = clamp(parseInt($('#nInput').value) || 1, 1, MAX_N);
+  if (n > S.pts.length) S.pts.push(...genPoints(n - S.pts.length, $('#patSel').value));
+  else S.pts.length = n;
+  S.sel = []; buildTable(); initCentroids();
+}
+$('#applyN').onclick = applyCount;
+$('#nInput').addEventListener('change', applyCount);
+$('#randBtn').onclick = () => {
+  const n = clamp(parseInt($('#nInput').value) || 1, 1, MAX_N);
+  S.pts = genPoints(n, $('#patSel').value); S.sel = []; buildTable(); initCentroids();
+};
+$('#addBtn').onclick = () => {
+  if (S.pts.length >= MAX_N) return;
+  const p = genPoints(1, 'uniform')[0]; S.pts.push(p);
+  const tr = makeRow(p); tb.appendChild(tr);
+  S.converged = false; assignAll(); refresh();
+  tr.scrollIntoView({ block: 'nearest' });
+};
+$('#kInput').addEventListener('change', () => {
+  let v = parseInt($('#kInput').value); const n = S.pts.length, max = Math.min(MAX_K, n);
+  if (!isFinite(v) || v < 1) v = 1;
+  let msg = '';
+  if (v > max) { msg = v > MAX_K ? `Maximum is ${MAX_K} centroids` : `K cannot exceed the number of samples (${n})`; v = max; }
+  S.K = v;
+  if (msg) { S.warn = msg; setTimeout(() => { S.warn = ''; updateUI(); }, 3000); }
+  initCentroids();
+});
+$('#initSel').onchange = initCentroids;
+$('#resetBtn').onclick = initCentroids;
+$('#stepBtn').onclick = () => { stopRun(); step(); refresh(); };
+$('#runBtn').onclick = () => {
+  if (S.running) { stopRun(); refresh(); return; }
+  if (S.converged) return;
+  S.running = true; refresh(); runLoop();
+};
+$('#optTrail').onchange = e => { S.trails = e.target.checked; sched(); };
+$('#optLinks').onchange = e => { S.links = e.target.checked; sched(); };
+$('#optEqual').onchange = e => { S.equal = e.target.checked; sched(); };
+$('#viewBtn').onclick = () => { S.yaw = -0.6; S.pitch = 0.4; S.zoom = 1; sched(); };
+$('#dimSeg').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const dim = +b.dataset.dim; if (dim === S.dim) return;
+  S.dim = dim;
+  document.querySelectorAll('#dimSeg button').forEach(x => x.classList.toggle('on', x === b));
+  $('#tbl').classList.toggle('dim2', dim === 2);
+  $('#app').classList.toggle('is3', dim === 3);
+  $('#colHint').textContent = dim === 3 ? '(X, Y, Z)' : '(X, Y)';
+  S.sel = []; initCentroids();
+});
+
+/* ---------- UI refresh ---------- */
+function updateUI() {
+  const n = S.pts.length, K = S.cents.length, max = Math.min(MAX_K, n);
+  $('#stIter').textContent = S.iter;
+  $('#stSSE').textContent = fmt(inertia(), 2);
+  $('#stStatus').textContent = S.running ? 'Running\u2026' : S.converged ? `Converged \u2713 (after ${S.iter} iteration${S.iter === 1 ? '' : 's'})` : 'Ready \u2013 press Step or Run';
+  $('#stepBtn').disabled = S.converged;
+  $('#runBtn').disabled = S.converged && !S.running;
+  $('#runBtn').innerHTML = S.running ? '&#10074;&#10074; Pause' : '&#9654; Run';
+  const k = $('#kInput'), kh = $('#kHint');
+  k.max = max; if (document.activeElement !== k) k.value = S.K;
+  kh.textContent = S.warn || `1 \u2013 ${max}`; kh.classList.toggle('warn', !!S.warn);
+  if (document.activeElement !== $('#nInput')) $('#nInput').value = n;
+  const cnt = new Array(K).fill(0); S.assign.forEach(a => { if (a >= 0) cnt[a]++; });
+  $('#legend').innerHTML = cnt.map((c, j) => `<span class="chip"><i class="dia" style="background:${colorOf(j)}"></i>C${j + 1}<b>${c}</b></span>`).join('');
+  const rows = tb.children;
+  for (let i = 0; i < rows.length; i++) {
+    rows[i].querySelector('.n').textContent = i + 1;
+    rows[i].querySelector('.dot').style.background = colorOf(S.assign[i] ?? 0);
+  }
+  $('#hint').textContent = S.dim === 3 ? 'Drag to rotate \u00b7 scroll to zoom \u00b7 hover a point for details' : 'Hover a point for details';
+  updateReadout();
+}
+function updateReadout() {
+  const el = $('#readout'), s = S.sel, lab = i => `#${i + 1} (${coords(S.pts[i])})`;
+  if (!s.length) { el.textContent = 'Click two data points to measure the distance between them.'; return; }
+  if (s.length === 1) { el.innerHTML = `<span><b>A</b> = ${lab(s[0])}</span><span style="color:var(--muted)">Click a second point.</span><button id="clrSel">Clear</button>`; $('#clrSel').onclick = clearSel; return; }
+  const a = S.pts[s[0]], b = S.pts[s[1]], dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+  const dist = Math.sqrt(d2(a, b));
+  const ca = S.assign[s[0]], cb = S.assign[s[1]];
+  const formula = S.dim === 3 ? `\u221a(${fmt(dx)}\u00b2 + ${fmt(dy)}\u00b2 + ${fmt(dz)}\u00b2)` : `\u221a(${fmt(dx)}\u00b2 + ${fmt(dy)}\u00b2)`;
+  el.innerHTML = `<span><b>A</b> ${lab(s[0])} &harr; <b>B</b> ${lab(s[1])}</span>
+    <span>Distance: <b class="val">${fmt(dist, 4)}</b></span>
+    <span class="val" style="color:var(--muted)">${formula}</span>
+    <span style="color:var(--muted)">${ca === cb ? `Same cluster (C${ca + 1})` : `Different clusters (C${ca + 1} vs C${cb + 1})`}</span>
+    <button id="clrSel">Clear</button>`;
+  $('#clrSel').onclick = clearSel;
+}
+function clearSel() { S.sel = []; updateReadout(); sched(); }
+function refresh() { updateUI(); draw(); if (S.mouseIn && !(drag && drag.moved)) updateHover(S.mouse.x, S.mouse.y); }
+const coords = p => `${fmt(p.x)}, ${fmt(p.y)}${S.dim === 3 ? ', ' + fmt(p.z) : ''}`;
+
+/* ---------- drawing helpers ---------- */
+function sched() { if (!raf) raf = requestAnimationFrame(draw); }
+function resize() {
+  const r = plot.getBoundingClientRect(); DPR = window.devicePixelRatio || 1; W = r.width; H = r.height;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); sched();
+}
+new ResizeObserver(resize).observe(plot);
+
+function niceTicks(min, max, target) {
+  const span = max - min, raw = span / Math.max(2, target), mag = 10 ** Math.floor(Math.log10(raw)), nm = raw / mag;
+  const step = (nm < 1.5 ? 1 : nm < 3 ? 2 : nm < 7 ? 5 : 10) * mag, out = [];
+  for (let v = Math.ceil(min / step - 1e-9) * step; v <= max + step * 1e-6; v += step) out.push(+v.toPrecision(12));
+  return { ticks: out, dec: Math.max(0, -Math.floor(Math.log10(step) + 1e-9)) };
+}
+function bounds() {
+  const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
+  for (const p of S.pts) [p.x, p.y, p.z].forEach((v, a) => { if (v < mn[a]) mn[a] = v; if (v > mx[a]) mx[a] = v; });
+  for (let a = 0; a < 3; a++) {
+    let r = mx[a] - mn[a]; if (r < 1e-9) { mn[a] -= 1; mx[a] += 1; r = 2; }
+    const pad = r * PAD; mn[a] -= pad; mx[a] += pad;
+  }
+  return { mn, mx };
+}
+function text(t, x, y, o = {}) {
+  ctx.font = o.font || '11px system-ui, sans-serif'; ctx.textAlign = o.align || 'center'; ctx.textBaseline = o.base || 'middle';
+  if (o.halo) { ctx.lineWidth = 3; ctx.strokeStyle = T.plot; ctx.lineJoin = 'round'; ctx.strokeText(t, x, y); }
+  ctx.fillStyle = o.color || T.muted; ctx.fillText(t, x, y);
+}
+function pill(t, x, y) {
+  ctx.font = '600 12px system-ui, sans-serif'; const w = ctx.measureText(t).width + 14, h = 20, r = 6;
+  ctx.beginPath(); ctx.moveTo(x - w / 2 + r, y - h / 2); ctx.arcTo(x + w / 2, y - h / 2, x + w / 2, y + h / 2, r); ctx.arcTo(x + w / 2, y + h / 2, x - w / 2, y + h / 2, r);
+  ctx.arcTo(x - w / 2, y + h / 2, x - w / 2, y - h / 2, r); ctx.arcTo(x - w / 2, y - h / 2, x + w / 2, y - h / 2, r); ctx.closePath();
+  ctx.fillStyle = T.ink; ctx.fill(); text(t, x, y + .5, { font: '600 12px system-ui, sans-serif', color: T.card });
+}
+function line(a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+
+/* ---------- main draw ---------- */
+function draw() {
+  raf = 0;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H); ctx.fillStyle = T.plot; ctx.fillRect(0, 0, W, H);
+  hit = [];
+  if (!S.pts.length || !S.cents.length) return;
+  const b = bounds();
+  drawScene(S.dim === 2 ? setup2D(b) : setup3D(b));
+}
+
+function setup2D(b) {
+  const L = 52, R = 18, Tp = 16, B = 40, pw = W - L - R, ph = H - Tp - B;
+  const rx = b.mx[0] - b.mn[0], ry = b.mx[1] - b.mn[1];
+  let sx, sy; if (S.equal) sx = sy = Math.min(pw / rx, ph / ry); else { sx = pw / rx; sy = ph / ry; }
+  const aw = rx * sx, ah = ry * sy, ox = L + (pw - aw) / 2, oy = Tp + (ph - ah) / 2;
+  const X = v => ox + (v - b.mn[0]) * sx, Y = v => oy + ah - (v - b.mn[1]) * sy;
+  ctx.fillStyle = T.area; ctx.fillRect(ox, oy, aw, ah);
+  const tx = niceTicks(b.mn[0], b.mx[0], aw / 70), ty = niceTicks(b.mn[1], b.mx[1], ah / 50);
+  ctx.lineWidth = 1; ctx.strokeStyle = T.grid;
+  tx.ticks.forEach(t => { const x = Math.round(X(t)) + .5; ctx.beginPath(); ctx.moveTo(x, oy); ctx.lineTo(x, oy + ah); ctx.stroke(); text(t.toFixed(tx.dec), x, oy + ah + 14); });
+  ty.ticks.forEach(t => { const y = Math.round(Y(t)) + .5; ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox + aw, y); ctx.stroke(); text(t.toFixed(ty.dec), ox - 7, y, { align: 'right' }); });
+  ctx.strokeStyle = T.axis; ctx.strokeRect(ox + .5, oy + .5, aw, ah);
+  text('X', ox + aw / 2, oy + ah + 30, { font: '600 12px system-ui', color: T.ink });
+  ctx.save(); ctx.translate(14, oy + ah / 2); ctx.rotate(-Math.PI / 2); text('Y', 0, 0, { font: '600 12px system-ui', color: T.ink }); ctx.restore();
+  return v => ({ x: X(v.x), y: Y(v.y), d: 0, s: 1 });
+}
+
+function setup3D(b) {
+  const rg = [0, 1, 2].map(a => b.mx[a] - b.mn[a]), mid = [0, 1, 2].map(a => (b.mx[a] + b.mn[a]) / 2), maxR = Math.max(...rg);
+  const h = rg.map(r => S.equal ? r / maxR : 1), k = [0, 1, 2].map(a => 2 * h[a] / rg[a]);
+  const cx = W / 2, cy = H / 2 + 12, Sc = Math.min(W, H) * 0.27 * S.zoom;
+  const cyw = Math.cos(S.yaw), syw = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const proj = (nx, ny, nz) => {
+    const x1 = nx * cyw + nz * syw, z1 = -nx * syw + nz * cyw, y2 = ny * cp - z1 * sp, z2 = ny * sp + z1 * cp, f = 4 / (4 - z2);
+    return { x: cx + x1 * f * Sc, y: cy - y2 * f * Sc, d: z2, s: f };
+  };
+  const nrm = (v, a) => (v - mid[a]) * k[a];
+  const P = v => proj(nrm(v.x, 0), nrm(v.y, 1), nrm(v.z, 2));
+  const tk = [0, 1, 2].map(a => niceTicks(b.mn[a], b.mx[a], 5));
+  ctx.lineWidth = 1;
+  // floor grid
+  ctx.strokeStyle = T.grid;
+  tk[0].ticks.forEach(t => line(proj(nrm(t, 0), -h[1], -h[2]), proj(nrm(t, 0), -h[1], h[2])));
+  tk[2].ticks.forEach(t => line(proj(-h[0], -h[1], nrm(t, 2)), proj(h[0], -h[1], nrm(t, 2))));
+  // bounding box
+  const cs = []; for (let i = 0; i < 8; i++) cs.push(proj((i & 1 ? 1 : -1) * h[0], (i & 2 ? 1 : -1) * h[1], (i & 4 ? 1 : -1) * h[2]));
+  ctx.strokeStyle = T.axis; ctx.globalAlpha = .55;
+  for (let i = 0; i < 8; i++) for (const a of [1, 2, 4]) if (!(i & a)) line(cs[i], cs[i | a]);
+  ctx.globalAlpha = 1;
+  // axes with ticks
+  const O = [-h[0], -h[1], -h[2]];
+  ctx.strokeStyle = T.ink; ctx.lineWidth = 1.6;
+  const ends = [proj(h[0], O[1], O[2]), proj(O[0], h[1], O[2]), proj(O[0], O[1], h[2])], o = proj(...O);
+  ends.forEach(e => line(o, e));
+  tk[0].ticks.forEach(t => { const q = proj(nrm(t, 0), O[1], O[2]); text(t.toFixed(tk[0].dec), q.x, q.y + 12, { halo: true }); });
+  tk[1].ticks.forEach(t => { const q = proj(O[0], nrm(t, 1), O[2]); text(t.toFixed(tk[1].dec), q.x - 8, q.y, { align: 'right', halo: true }); });
+  tk[2].ticks.forEach(t => { const q = proj(O[0], O[1], nrm(t, 2)); text(t.toFixed(tk[2].dec), q.x - 8, q.y + 8, { align: 'right', halo: true }); });
+  ['X', 'Y', 'Z'].forEach((n, i) => text(n, ends[i].x + (ends[i].x - o.x) * .08, ends[i].y + (ends[i].y - o.y) * .08, { font: '700 13px system-ui', color: T.ink, halo: true }));
+  ctx.lineWidth = 1;
+  return P;
+}
+
+function drawScene(P) {
+  const n = S.pts.length, K = S.cents.length, hov = S.hover;
+  const pp = S.pts.map(P), cc = S.cents.map(P);
+  const base = n > 150 ? 4.5 : 5.5;
+  const rp = i => Math.max(3, base * pp[i].s), rc = j => Math.max(8, 11 * cc[j].s);
+
+  // centroid paths
+  if (S.trails && S.history.length > 1) {
+    ctx.save(); ctx.lineWidth = 1.5;
+    for (let j = 0; j < K; j++) {
+      ctx.strokeStyle = colorOf(j); ctx.globalAlpha = .7; ctx.setLineDash([5, 4]); ctx.beginPath();
+      S.history.forEach((h, q) => { const p = P(h[j]); q ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y); }); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = colorOf(j);
+      S.history.slice(0, -1).forEach(h => { const p = P(h[j]); ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, TAU); ctx.fill(); });
+    }
+    ctx.restore();
+  }
+  // lines to centroid
+  if (S.links) {
+    ctx.save(); ctx.lineWidth = 1; ctx.globalAlpha = .22;
+    for (let i = 0; i < n; i++) { ctx.strokeStyle = colorOf(S.assign[i]); line(pp[i], cc[S.assign[i]]); }
+    ctx.restore();
+  }
+  // hover connection lines
+  if (hov) {
+    ctx.save(); ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+    if (hov.k === 'p') { ctx.strokeStyle = T.ink; line(pp[hov.i], cc[S.assign[hov.i]]); }
+    else { ctx.strokeStyle = colorOf(hov.j); ctx.globalAlpha = .55; for (let i = 0; i < n; i++) if (S.assign[i] === hov.j) line(pp[i], cc[hov.j]); }
+    ctx.restore();
+  }
+  // points + centroids (depth sorted; centroids slightly in front)
+  const items = [];
+  for (let i = 0; i < n; i++) items.push({ k: 'p', i, d: pp[i].d });
+  for (let j = 0; j < K; j++) items.push({ k: 'c', j, d: cc[j].d + .25 });
+  items.sort((a, b) => a.d - b.d);
+  for (const it of items) {
+    if (it.k === 'p') {
+      const q = pp[it.i], r = rp(it.i);
+      ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.globalAlpha = .88; ctx.fillStyle = colorOf(S.assign[it.i]); ctx.fill();
+      ctx.globalAlpha = 1; ctx.lineWidth = 1.2; ctx.strokeStyle = T.card; ctx.stroke();
+      hit.push({ k: 'p', i: it.i, x: q.x, y: q.y, r, d: it.d });
+    } else {
+      const q = cc[it.j], r = rc(it.j) + (hov && hov.k === 'c' && hov.j === it.j ? 3 : 0);
+      ctx.save(); ctx.beginPath();
+      ctx.moveTo(q.x, q.y - r); ctx.lineTo(q.x + r * .8, q.y); ctx.lineTo(q.x, q.y + r); ctx.lineTo(q.x - r * .8, q.y); ctx.closePath();
+      ctx.shadowColor = colorOf(it.j); ctx.shadowBlur = 14; ctx.fillStyle = colorOf(it.j); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.lineJoin = 'miter'; ctx.lineWidth = 3.5; ctx.strokeStyle = T.ink; ctx.stroke();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
+      if (K <= 16) text('C' + (it.j + 1), q.x, q.y - r - 8, { font: '700 11px system-ui', color: T.ink, halo: true });
+      hit.push({ k: 'c', j: it.j, x: q.x, y: q.y, r: r * .9, d: it.d });
+    }
+  }
+  // overlays: hover ring, table-hover ring, selection
+  const ring = (i, w, dash) => { const q = pp[i]; ctx.save(); ctx.lineWidth = w; ctx.strokeStyle = T.ink; if (dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.arc(q.x, q.y, rp(i) + 4, 0, TAU); ctx.stroke(); ctx.restore(); };
+  if (hov && hov.k === 'p') ring(hov.i, 2);
+  if (S.tblHover >= 0 && S.tblHover < n) ring(S.tblHover, 2, [3, 3]);
+  if (S.sel.length === 2) {
+    const a = pp[S.sel[0]], b = pp[S.sel[1]];
+    ctx.save(); ctx.lineWidth = 2; ctx.strokeStyle = T.ink; ctx.setLineDash([7, 4]); line(a, b); ctx.restore();
+    pill('d = ' + fmt(Math.sqrt(d2(S.pts[S.sel[0]], S.pts[S.sel[1]])), 3), (a.x + b.x) / 2, (a.y + b.y) / 2 - 14);
+  }
+  S.sel.forEach((i, q) => { ring(i, 2.5); text(q ? 'B' : 'A', pp[i].x, pp[i].y - rp(i) - 13, { font: '700 13px system-ui', color: T.ink, halo: true }); });
+}
+
+/* ---------- interaction ---------- */
+function pick(mx, my) {
+  let best = null, bs = Infinity;
+  for (const h of hit) {
+    const dd = Math.hypot(h.x - mx, h.y - my), lim = h.r + 3;
+    if (dd > lim) continue;
+    const sc = dd - (h.k === 'c' ? 8 : 0) - h.d * 5;
+    if (sc < bs) { bs = sc; best = h; }
+  }
+  return best;
+}
+function sameHover(a, b) { return (!a && !b) || (a && b && a.k === b.k && (a.k === 'p' ? a.i === b.i : a.j === b.j)); }
+function updateHover(mx, my) {
+  S.mouse = { x: mx, y: my };
+  const h = pick(mx, my), same = sameHover(h, S.hover);
+  S.hover = h ? { k: h.k, i: h.i, j: h.j } : null;
+  cv.style.cursor = h ? 'pointer' : (S.dim === 3 ? 'grab' : 'default');
+  showTip(S.hover);
+  if (!same) sched();
+}
+function hideTip() { tip.style.display = 'none'; }
+function showTip(h) {
+  if (!h) { hideTip(); return; }
+  let html;
+  if (h.k === 'p') {
+    const p = S.pts[h.i], j = S.assign[h.i]; if (!p) { hideTip(); return; }
+    html = `<div class="th"><i class="dot" style="background:${colorOf(j)};margin:0"></i><b>Point #${h.i + 1}</b></div>
+      <div>(${coords(p)})</div>
+      <div>Cluster: <b>${cname(j)}</b></div>
+      <div>Distance to centroid C${j + 1}: <b>${fmt(S.dist[h.i], 4)}</b></div>`;
+  } else {
+    const c = S.cents[h.j]; let cnt = 0, sse = 0;
+    S.assign.forEach((a, i) => { if (a === h.j) { cnt++; sse += S.dist[i] ** 2; } });
+    html = `<div class="th"><i class="dia" style="background:${colorOf(h.j)}"></i><b>Centroid ${cname(h.j)}</b></div>
+      <div>(${coords(c)})</div><div>Points in cluster: <b>${cnt}</b></div><div>Cluster SSE: <b>${fmt(sse, 3)}</b></div>`;
+  }
+  tip.innerHTML = html; tip.style.display = 'block';
+  const pad = 14, tw = tip.offsetWidth, th = tip.offsetHeight;
+  let x = S.mouse.x + pad, y = S.mouse.y + pad;
+  if (x + tw > W - 4) x = S.mouse.x - tw - pad;
+  if (y + th > H - 4) y = S.mouse.y - th - pad;
+  tip.style.transform = `translate(${Math.max(4, x)}px,${Math.max(4, y)}px)`;
+}
+function onClick(mx, my) {
+  const h = pick(mx, my);
+  if (h && h.k === 'p') {
+    const q = S.sel.indexOf(h.i);
+    if (q >= 0) S.sel.splice(q, 1); else if (S.sel.length >= 2) S.sel = [h.i]; else S.sel.push(h.i);
+  } else if (!h) S.sel = [];
+  updateReadout(); sched();
+}
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, moved: false }; });
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  S.mouseIn = true;
+  if (drag) {
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 4) drag.moved = true;
+    if (drag.moved && S.dim === 3) {
+      S.yaw += (e.clientX - drag.lx) * 0.01; S.pitch = clamp(S.pitch + (e.clientY - drag.ly) * 0.01, -1.5, 1.5);
+      drag.lx = e.clientX; drag.ly = e.clientY; S.hover = null; hideTip(); cv.style.cursor = 'grabbing'; sched(); return;
+    }
+    drag.lx = e.clientX; drag.ly = e.clientY;
+  }
+  updateHover(mx, my);
+});
+cv.addEventListener('pointerup', e => {
+  const r = cv.getBoundingClientRect();
+  if (drag && !drag.moved) { S.mouseIn = true; S.mouse = { x: e.clientX - r.left, y: e.clientY - r.top }; onClick(S.mouse.x, S.mouse.y); updateHover(S.mouse.x, S.mouse.y); }
+  drag = null;
+});
+cv.addEventListener('pointerleave', () => { S.mouseIn = false; if (!drag) { S.hover = null; hideTip(); sched(); } });
+cv.addEventListener('wheel', e => { if (S.dim === 3) { e.preventDefault(); S.zoom = clamp(S.zoom * Math.exp(-e.deltaY * 0.001), 0.4, 3); sched(); } }, { passive: false });
+
+/* ---------- boot ---------- */
+S.pts = genPoints(60, 'blobs');
+buildTable();
+resize();
+initCentroids();
+})();
+</script>
+</body>
+</html>
