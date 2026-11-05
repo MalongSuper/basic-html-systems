@@ -1,6 +1,6 @@
 # K-Means Clustering Simulator
 
-The K-Means Clustering Simulator is a small, interactive, browser-based tool for exploring how the K-Means algorithm groups data points. Open [`kmeans_simulator.html`](./kmeans_simulator.html) in a modern web browser to get started; no installation or build step is required.
+The K-Means Clustering Simulator is a small, interactive, browser-based tool for exploring how the K-Means algorithm groups data points. Open [`kmeans.html`](./kmeans.html) in a modern web browser to get started; no installation or build step is required.
 
 ## What is K-Means Clustering?
 
