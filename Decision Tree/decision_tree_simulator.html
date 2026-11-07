@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decision Tree Simulator</title>
+<style>
+:root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--line2:#cbd5e1;--soft:#f8fafc;--accent:#2563eb}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.app{display:grid;grid-template-columns:minmax(420px,560px) minmax(0,1fr);min-height:100vh}
+aside{border-right:1px solid var(--line);padding:18px 16px 28px;position:sticky;top:0;height:100vh;overflow-y:auto}
+main{padding:16px 18px;min-width:0}
+h1{font-size:18px;margin:0 0 2px}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+section{margin:0 0 16px}
+h2{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+h2 select{text-transform:none;letter-spacing:0;font-weight:500;font-size:12.5px;padding:3px 6px}
+button,select{font:inherit}
+button{border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:8px;padding:6px 11px;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover:not(:disabled){background:var(--soft);border-color:#94a3b8}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button.primary:hover:not(:disabled){background:#1d4ed8;border-color:#1d4ed8}
+select,input[type=text],input[type=number]{border:1px solid var(--line2);border-radius:8px;padding:6px 8px;color:var(--ink);background:#fff;font:inherit;min-width:0}
+input:focus,select:focus{outline:2px solid #bfdbfe;border-color:var(--accent)}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+
+/* features */
+.addrow,.frow{display:grid;grid-template-columns:minmax(0,1fr) 172px auto;gap:6px;margin-bottom:6px}
+.frow{grid-template-columns:minmax(0,1fr) 172px 32px}
+.frow .x{padding:4px 0;color:var(--muted)}
+.frow .x:hover{color:#b91c1c;border-color:#fca5a5;background:#fef2f2}
+.empty-f{color:var(--muted);font-size:12.5px;padding:4px 0}
+
+/* target */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.seg button{text-align:left;line-height:1.3;padding:8px 10px}
+.seg button small{display:block;color:var(--muted);font-size:11.5px;font-weight:400}
+.seg button.on{border-color:var(--accent);background:#eff6ff;color:#1e40af}
+.seg button.on small{color:#3b82f6}
+
+/* table */
+.tablewrap{border:1px solid var(--line);border-radius:10px;max-height:340px;overflow:auto;margin-bottom:8px}
+table{border-collapse:separate;border-spacing:0;width:max-content;font-size:13px}
+th{position:sticky;top:0;z-index:1;background:var(--soft);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+th small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+th.tgt{background:#eff6ff;color:#1e40af}
+th.tgt small{color:#3b82f6}
+td{padding:2px 3px;border-bottom:1px solid #f1f5f9;transition:background .1s}
+td.n{color:var(--muted);text-align:center;width:30px;font-size:12px}
+.tablewrap td input,.tablewrap td select{width:85px;border:1px solid transparent;border-radius:6px;padding:5px 6px;background:transparent}
+.tablewrap td input:hover,.tablewrap td select:hover{border-color:var(--line2)}
+.tablewrap td input:focus,.tablewrap td select:focus{outline:none;border-color:var(--accent);background:#fff}
+.tablewrap td.t input{font-weight:600}
+.tablewrap td input.bad,.tablewrap td select.bad{border-color:#f87171;background:#fef2f2}
+td .rdel{border:0;background:transparent;padding:2px 7px;color:#94a3b8}
+td .rdel:hover{color:#b91c1c;background:#fef2f2}
+tr.hl td{background:#dbeafe}
+.opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:2px 0 14px;font-size:12.5px;color:var(--muted)}
+.opts label{display:flex;gap:6px;align-items:center}
+.opts input{width:70px;padding:4px 6px}
+#bBuild{width:100%;padding:10px;font-size:15px}
+#msg{margin-top:10px;font-size:12.5px;border-radius:8px;padding:0}
+#msg.err,#msg.warn,#msg.ok{padding:8px 10px}
+#msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+#msg.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+#msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+
+/* stage */
+.stage{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;height:calc(100vh - 32px);min-height:520px;overflow:hidden;background:#fff}
+.stagehead{display:flex;justify-content:space-between;align-items:flex-start;gap:8px 16px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--soft)}
+.stagehead .title{font-weight:700;font-size:13.5px}
+.stagehead .title small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:1px}
+.legend{display:flex;gap:4px 14px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);margin-top:2px}
+.legend .it{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:14px;height:10px;border:1.5px solid;border-radius:3px}
+.legend i.dn{background:#fff;border-color:#334155}
+.legend i.lf{border-radius:99px}
+.legend i.ramp{width:54px;border-color:#93c5fd;background:linear-gradient(90deg,#eff6ff,#93c5fd)}
+.zoom{display:flex;gap:4px}
+.zoom button{padding:3px 9px;font-size:13px}
+.treewrap{flex:1;min-height:0;overflow:auto;padding:12px;position:relative}
+.treewrap svg{display:block;margin:0 auto}
+.ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);text-align:center;padding:20px}
+.stagefoot{display:flex;gap:6px 8px;flex-wrap:wrap;align-items:center;padding:9px 14px;border-top:1px solid var(--line);background:var(--soft);min-height:42px}
+.chip{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:99px;padding:2px 10px}
+.chip b{font-variant-numeric:tabular-nums}
+.chip.good{border-color:#86efac;background:#f0fdf4;color:#15803d}
+.chip.stale{border-color:#fde68a;background:#fffbeb;color:#92400e}
+
+svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.node{cursor:default}
+.node rect{transition:stroke .1s,stroke-width .1s}
+.node.hv rect{stroke:#2563eb;stroke-width:3}
+.node.pin rect{stroke:#2563eb;stroke-width:3.4}
+.node.pin{filter:drop-shadow(0 0 5px rgba(37,99,235,.5))}
+path.edge{fill:none;stroke:#94a3b8;stroke-width:1.6}
+path.edge.on{stroke:#2563eb;stroke-width:2.6}
+.elab rect{fill:#fff;stroke:#e2e8f0}
+.elab text{font-size:11.5px;font-weight:500;fill:#475569}
+.elab.on rect{stroke:#93c5fd;fill:#eff6ff}
+.elab.on text{fill:#1e40af}
+
+/* tooltip */
+.tip{position:fixed;z-index:50;max-width:400px;background:#fff;border:1px solid var(--line2);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.16);padding:10px 12px;font-size:12.5px;pointer-events:none;display:none}
+.tip .th{font-size:13px;margin-bottom:4px}
+.tip .big{display:flex;justify-content:space-between;gap:14px;align-items:baseline;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:5px 9px;margin:4px 0 6px;color:#1e40af}
+.tip .big b{font-size:16px;font-variant-numeric:tabular-nums}
+.tip .f{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:#334155}
+.tip .m{color:var(--muted);margin:5px 0}
+.tip .path{color:var(--muted);font-size:11.5px;margin-bottom:5px;border-bottom:1px dashed var(--line);padding-bottom:5px}
+.tip table{border-collapse:collapse;width:100%;font-size:11.5px;margin-top:4px}
+.tip th{text-align:left;color:var(--muted);font-weight:600;padding:2px 6px 2px 0;position:static;background:none;border:0;white-space:nowrap}
+.tip td{padding:2px 6px 2px 0;border:0;font-variant-numeric:tabular-nums}
+.tip .sub{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin:8px 0 3px}
+.tip .cand{display:grid;grid-template-columns:minmax(0,120px) 1fr 54px;gap:6px;align-items:center;font-size:11.5px;padding:1px 0}
+.tip .cand .bar{height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden}
+.tip .cand .bar i{display:block;height:100%;background:#94a3b8}
+.tip .cand.ch{font-weight:700;color:#1e40af}
+.tip .cand.ch .bar i{background:#2563eb}
+.tip .cand span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.tip .cand span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.tip.pinned{border-color:#2563eb;box-shadow:0 10px 28px rgba(37,99,235,.22);z-index:49}
+.pinbadge{font-size:11px;font-weight:600;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:2px 8px;margin-bottom:7px}
+.holdhint{font-size:11.5px;color:var(--muted);margin-top:5px}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .stage{height:78vh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <h1>Decision Tree Simulator</h1>
+  <p class="sub">Describe your data, then build the tree with ID3 and inspect every split.</p>
+
+  <section>
+    <h2>Features</h2>
+    <div class="addrow">
+      <input type="text" id="fName" placeholder="New feature, e.g. Outlook" aria-label="Feature name">
+      <select id="fType" aria-label="Feature type">
+        <option value="string">String</option>
+        <option value="bool">Boolean (Yes / No)</option>
+        <option value="int">Integer</option>
+        <option value="num">Numerical value</option>
+      </select>
+      <button id="bAddF">+ Add</button>
+    </div>
+    <div id="fList"></div>
+  </section>
+
+  <section>
+    <h2>Target</h2>
+    <input type="text" id="tName" aria-label="Target name" style="width:100%" placeholder="Target name, e.g. Play">
+    <div class="seg" id="modeSeg">
+      <button data-m="cls">Classification<small>ID3 · Information Gain</small></button>
+      <button data-m="reg">Regression<small>ID3 · Std. Deviation Reduction</small></button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Dataset
+      <select id="preset" aria-label="Load an example">
+        <option value="">Load an example…</option>
+        <option value="xbox">Buy XBOX (from the notebook)</option>
+        <option value="tennis">Play Tennis (categorical)</option>
+        <option value="weather">Play Tennis (numeric values)</option>
+        <option value="golf">Golf hours played (regression)</option>
+      </select>
+    </h2>
+    <div class="tablewrap"><table id="tbl"></table></div>
+    <div class="row">
+      <button id="bAddR">+ Add record</button>
+      <button id="bClearR">Clear records</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="opts">
+      <label>Max depth <input type="number" id="oDepth" min="1" step="1" placeholder="∞"></label>
+      <label id="lStop" hidden>Stop when SD ≤ <input type="number" id="oStop" min="0" step="any" value="0"></label>
+    </div>
+    <button class="primary" id="bBuild">Build tree</button>
+    <div id="msg" role="status"></div>
+    <p class="hint">Categorical features (String, Boolean) are used once per branch, exactly like the notebook. Integer and Numerical features are split in two at the best threshold (≤ t / &gt; t) and can be reused further down.</p>
+  </section>
+</aside>
+
+<main>
+  <div class="stage">
+    <div class="stagehead">
+      <div>
+        <div class="title" id="sTitle">Decision tree<small id="sSub"></small></div>
+        <div class="legend" id="legend"></div>
+        <div class="holdhint">Hover a node to see its calculation · click it to hold, click again (or press Esc) to release</div>
+      </div>
+      <div class="zoom">
+        <button id="zOut" title="Zoom out" aria-label="Zoom out">−</button>
+        <button id="zFit" title="Fit to width">Fit</button>
+        <button id="zIn" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+    <div class="treewrap" id="wrap">
+      <div class="ph" id="ph">Press <b>&nbsp;Build tree&nbsp;</b> to grow the decision tree.</div>
+      <div id="svgHost"></div>
+    </div>
+    <div class="stagefoot" id="foot"></div>
+  </div>
+</main>
+</div>
+<div class="tip" id="tip"></div>
+<div class="tip pinned" id="ptip"></div>
+<div id="dls"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= helpers ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const FONT='system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+const mctx=document.createElement('canvas').getContext('2d');
+const meas=(s,w,px)=>{mctx.font=w+' '+px+'px '+FONT;return mctx.measureText(s).width;};
+const clip=(s,n)=>s.length>n?s.slice(0,n-1)+'…':s;
+const fmt=(x,d)=>{const v=+x.toFixed(d==null?4:d);return Object.is(v,-0)?'0':String(v);};
+const f4=x=>(Math.abs(x)<5e-5?0:x).toFixed(4);
+const isNum=t=>t==='int'||t==='num';
+const TYPE_LABEL={bool:'Boolean',string:'String',int:'Integer',num:'Numerical'};
+const MAX_ROWS=500;
+
+/* ================= state ================= */
+let fid=0;
+const S={features:[],target:{name:'Target',mode:'cls'},rows:[],dirty:false,tree:null,D:null,nodes:[],zoom:null,msgKind:'',colors:null,ramp:null};
+
+/* ================= example datasets ================= */
+const PRESETS={
+  xbox:{mode:'cls',target:'Buy_XBOX',
+    feats:[['Age','string'],['Income','string'],['Student','bool'],['Credit_Rating','string']],
+    cols:[
+      ['≤30','≤30','31…40','>40','>40','>40','31…40','≤30','≤30','>40','≤30','31…40','31…40','>40'],
+      ['high','high','high','medium','low','low','low','medium','low','medium','medium','medium','high','medium'],
+      ['no','no','no','no','yes','yes','yes','no','yes','yes','yes','no','yes','no'],
+      ['Fair','Excellent','Fair','Fair','Fair','Excellent','Excellent','Fair','Fair','Fair','Excellent','Excellent','Fair','Excellent'],
+      ['no','no','yes','yes','yes','no','yes','no','yes','yes','yes','yes','yes','no']]},
+  tennis:{mode:'cls',target:'Play',
+    feats:[['Outlook','string'],['Temperature','string'],['Humidity','string'],['Wind','string']],
+    cols:[
+      ['Sunny','Sunny','Overcast','Rain','Rain','Rain','Overcast','Sunny','Sunny','Rain','Sunny','Overcast','Overcast','Rain'],
+      ['Hot','Hot','Hot','Mild','Cool','Cool','Cool','Mild','Cool','Mild','Mild','Mild','Hot','Mild'],
+      ['High','High','High','High','Normal','Normal','Normal','High','Normal','Normal','Normal','High','Normal','High'],
+      ['Weak','Strong','Weak','Weak','Weak','Strong','Strong','Weak','Weak','Weak','Strong','Strong','Weak','Strong'],
+      ['No','No','Yes','Yes','Yes','No','Yes','No','Yes','Yes','Yes','Yes','Yes','No']]},
+  weather:{mode:'cls',target:'Play',
+    feats:[['Outlook','string'],['Temperature','int'],['Humidity','int'],['Windy','bool']],
+    cols:[
+      ['Sunny','Sunny','Overcast','Rainy','Rainy','Rainy','Overcast','Sunny','Sunny','Rainy','Sunny','Overcast','Overcast','Rainy'],
+      [85,80,83,70,68,65,64,72,69,75,75,72,81,71],
+      [85,90,86,96,80,70,65,95,70,80,70,90,75,91],
+      ['No','Yes','No','No','No','Yes','Yes','No','No','No','Yes','Yes','No','Yes'],
+      ['no','no','yes','yes','yes','no','yes','no','yes','yes','yes','yes','yes','no']]},
+  golf:{mode:'reg',target:'Hours_Played',
+    feats:[['Outlook','string'],['Temp','string'],['Humidity','string'],['Windy','bool']],
+    cols:[
+      ['Rainy','Rainy','Overcast','Sunny','Sunny','Sunny','Overcast','Rainy','Rainy','Sunny','Rainy','Overcast','Overcast','Sunny'],
+      ['Hot','Hot','Hot','Mild','Cool','Cool','Cool','Mild','Cool','Mild','Mild','Mild','Hot','Mild'],
+      ['High','High','High','High','Normal','Normal','Normal','High','Normal','Normal','Normal','High','Normal','High'],
+      ['No','Yes','No','No','No','Yes','Yes','No','No','No','Yes','Yes','No','Yes'],
+      [25,30,46,45,52,23,43,35,38,46,48,52,44,30]]}
+};
+
+function loadPreset(key){
+  const p=PRESETS[key];if(!p)return;
+  S.features=p.feats.map(([name,type])=>({id:'f'+(++fid),name,type}));
+  S.target={name:p.target,mode:p.mode};
+  const n=p.cols[0].length;
+  S.rows=[];
+  for(let i=0;i<n;i++){
+    const v={};
+    S.features.forEach((f,j)=>{
+      let x=p.cols[j][i];
+      if(f.type==='bool')x=/^y/i.test(String(x))?'Yes':'No';
+      v[f.id]=String(x);
+    });
+    v.t=String(p.cols[p.cols.length-1][i]);
+    S.rows.push({v});
+  }
+  renderAll();
+  build();
+}
+
+/* ================= left panel: rendering ================= */
+function renderFeatures(){
+  const el=$('fList');
+  if(!S.features.length){el.innerHTML='<div class="empty-f">No features yet — add one above.</div>';return;}
+  el.innerHTML=S.features.map(f=>`<div class="frow" data-f="${f.id}">
+    <input type="text" class="fn" value="${esc(f.name)}" aria-label="Feature name">
+    <select class="ft" aria-label="Feature type">${Object.keys(TYPE_LABEL).map(t=>`<option value="${t}"${t===f.type?' selected':''}>${t==='bool'?'Boolean (Yes / No)':t==='num'?'Numerical value':TYPE_LABEL[t]}</option>`).join('')}</select>
+    <button class="x" title="Remove feature" aria-label="Remove feature">×</button></div>`).join('');
+}
+
+function cellHTML(r,key,f){
+  const val=S.rows[r].v[key]??'';
+  const base=`data-r="${r}" data-k="${key}"`;
+  const isT=key==='t';
+  if(!isT&&f.type==='bool')
+    return `<select ${base}><option value="">–</option><option value="Yes"${val==='Yes'?' selected':''}>Yes</option><option value="No"${val==='No'?' selected':''}>No</option></select>`;
+  if(isT?S.target.mode==='reg':isNum(f.type))
+    return `<input type="number" size="4" step="${!isT&&f.type==='int'?1:'any'}" value="${esc(val)}" ${base}>`;
+  return `<input type="text" size="4" value="${esc(val)}" list="dl-${key}" ${base}>`;
+}
+
+function renderTable(){
+  const tb=$('tbl');
+  let h='<thead><tr><th>#</th>';
+  S.features.forEach(f=>{h+=`<th>${esc(f.name)}<small>${TYPE_LABEL[f.type]}</small></th>`;});
+  h+=`<th class="tgt">${esc(S.target.name||'Target')}<small>target · ${S.target.mode==='cls'?'class':'number'}</small></th><th></th></tr></thead><tbody>`;
+  S.rows.forEach((row,r)=>{
+    h+=`<tr data-r="${r}"><td class="n">${r+1}</td>`;
+    S.features.forEach(f=>{h+=`<td>${cellHTML(r,f.id,f)}</td>`;});
+    h+=`<td class="t">${cellHTML(r,'t')}</td><td><button class="rdel" title="Delete record" aria-label="Delete record">×</button></td></tr>`;
+  });
+  if(!S.rows.length)h+=`<tr><td colspan="${S.features.length+3}" style="padding:14px;color:var(--muted);text-align:center">No records yet.</td></tr>`;
+  tb.innerHTML=h+'</tbody>';
+  updateDatalists();
+}
+
+function updateDatalists(){
+  let h='';
+  const cols=S.features.filter(f=>f.type==='string').map(f=>f.id);
+  if(S.target.mode==='cls')cols.push('t');
+  cols.forEach(k=>{
+    const seen=new Set();
+    S.rows.forEach(r=>{const v=(r.v[k]||'').trim();if(v)seen.add(v);});
+    h+=`<datalist id="dl-${k}">${[...seen].map(v=>`<option value="${esc(v)}">`).join('')}</datalist>`;
+  });
+  $('dls').innerHTML=h;
+}
+
+function renderMode(){
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.target.mode));
+  $('lStop').hidden=S.target.mode!=='reg';
+  $('tName').value=S.target.name;
+}
+function renderAll(){renderFeatures();renderMode();renderTable();}
+
+/* ================= left panel: events ================= */
+function say(kind,html){const m=$('msg');m.className=kind||'';m.innerHTML=html||'';S.msgKind=kind||'';}
+function setDirty(v){
+  S.dirty=v;
+  if(S.tree)renderFoot();
+}
+function nameClash(name,exceptId){
+  const n=name.trim().toLowerCase();
+  if(S.target.name.trim().toLowerCase()===n&&exceptId!=='t')return true;
+  return S.features.some(f=>f.id!==exceptId&&f.name.trim().toLowerCase()===n);
+}
+
+function addFeature(){
+  const inp=$('fName'),name=inp.value.trim(),type=$('fType').value;
+  if(!name){say('err','Give the new feature a name first.');inp.focus();return;}
+  if(nameClash(name)){say('err',`“${esc(name)}” is already used by another column.`);inp.focus();return;}
+  const f={id:'f'+(++fid),name,type};
+  S.features.push(f);S.rows.forEach(r=>{r.v[f.id]='';});
+  inp.value='';say('');setDirty(true);
+  renderFeatures();renderTable();inp.focus();
+}
+$('bAddF').onclick=addFeature;
+$('fName').addEventListener('keydown',e=>{if(e.key==='Enter')addFeature();});
+
+function convertValue(val,type){
+  val=(val||'').trim();
+  if(type==='bool'){if(/^(yes|y|true|1)$/i.test(val))return 'Yes';if(/^(no|n|false|0)$/i.test(val))return 'No';return '';}
+  if(type==='int'){const x=Number(val);return val!==''&&Number.isInteger(x)?String(x):'';}
+  if(type==='num'){const x=Number(val);return val!==''&&Number.isFinite(x)?String(x):'';}
+  return val;
+}
+
+$('fList').addEventListener('change',e=>{
+  const row=e.target.closest('.frow');if(!row)return;
+  const f=S.features.find(x=>x.id===row.dataset.f);if(!f)return;
+  if(e.target.classList.contains('fn')){
+    const name=e.target.value.trim();
+    if(!name||nameClash(name,f.id)){say('err',!name?'A feature needs a name.':`“${esc(name)}” is already used by another column.`);e.target.value=f.name;return;}
+    f.name=name;say('');
+  }else if(e.target.classList.contains('ft')){
+    f.type=e.target.value;
+    S.rows.forEach(r=>{r.v[f.id]=convertValue(r.v[f.id],f.type);});
+    say('');
+  }
+  setDirty(true);renderTable();
+});
+$('fList').addEventListener('click',e=>{
+  if(!e.target.closest('.x'))return;
+  const id=e.target.closest('.frow').dataset.f;
+  S.features=S.features.filter(f=>f.id!==id);
+  S.rows.forEach(r=>{delete r.v[id];});
+  say('');setDirty(true);renderFeatures();renderTable();
+});
+
+$('tName').addEventListener('change',e=>{
+  const name=e.target.value.trim();
+  if(!name||nameClash(name,'t')){say('err',!name?'The target needs a name.':`“${esc(name)}” is already used by a feature.`);e.target.value=S.target.name;return;}
+  S.target.name=name;say('');setDirty(true);renderTable();
+});
+$('modeSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b||b.dataset.m===S.target.mode)return;
+  S.target.mode=b.dataset.m;
+  say('');setDirty(true);renderMode();renderTable();
+});
+
+$('preset').onchange=e=>{const k=e.target.value;e.target.value='';if(k){$('oDepth').value='';loadPreset(k);}};
+
+$('bAddR').onclick=()=>{
+  if(S.rows.length>=MAX_ROWS){say('err',`This simulator holds up to ${MAX_ROWS} records.`);return;}
+  const v={t:''};S.features.forEach(f=>{v[f.id]='';});
+  S.rows.push({v});say('');setDirty(true);renderTable();
+  const w=document.querySelector('.tablewrap');w.scrollTop=w.scrollHeight;
+  const first=document.querySelector(`#tbl tr[data-r="${S.rows.length-1}"] input, #tbl tr[data-r="${S.rows.length-1}"] select`);
+  if(first)first.focus();
+};
+$('bClearR').onclick=()=>{S.rows=[];say('');setDirty(true);renderTable();};
+
+const tbl=$('tbl');
+tbl.addEventListener('input',e=>{
+  const el=e.target;if(!el.dataset||el.dataset.r==null)return;
+  S.rows[+el.dataset.r].v[el.dataset.k]=el.value;
+  el.classList.remove('bad');setDirty(true);
+});
+tbl.addEventListener('change',e=>{
+  const el=e.target;if(!el.dataset||el.dataset.r==null)return;
+  S.rows[+el.dataset.r].v[el.dataset.k]=el.value;
+  el.classList.remove('bad');setDirty(true);updateDatalists();
+});
+tbl.addEventListener('click',e=>{
+  if(!e.target.closest('.rdel'))return;
+  const r=+e.target.closest('tr').dataset.r;
+  S.rows.splice(r,1);say('');setDirty(true);renderTable();
+});
+
+/* ================= ID3 core ================= */
+function prepare(){
+  const errs=[],feats=S.features,rows=S.rows;
+  if(!feats.length)return{fatal:'Add at least one feature first.'};
+  if(rows.length<2)return{fatal:'Add at least two records first.'};
+  const reg=S.target.mode==='reg';
+  const D={mode:S.target.mode,features:feats.map(f=>({id:f.id,name:f.name,type:f.type})),n:rows.length,vals:{},order:{},y:[],classes:[],tname:S.target.name};
+  feats.forEach(f=>{
+    const col=[],canon=new Map(),order=[];
+    rows.forEach((r,i)=>{
+      const raw=String(r.v[f.id]==null?'':r.v[f.id]).trim();
+      if(raw===''){errs.push({r:i,k:f.id,msg:`Record ${i+1} · ${esc(f.name)} is empty`});col.push(null);return;}
+      if(isNum(f.type)){
+        const x=Number(raw);
+        if(!Number.isFinite(x)||(f.type==='int'&&!Number.isInteger(x))){errs.push({r:i,k:f.id,msg:`Record ${i+1} · ${esc(f.name)} must be ${f.type==='int'?'a whole number':'a number'}`});col.push(null);return;}
+        col.push(x);return;
+      }
+      if(f.type==='bool'&&raw!=='Yes'&&raw!=='No'){errs.push({r:i,k:f.id,msg:`Record ${i+1} · ${esc(f.name)} must be Yes or No`});col.push(null);return;}
+      const key=raw.toLowerCase();
+      if(!canon.has(key)){canon.set(key,raw);order.push(raw);}
+      col.push(canon.get(key));
+    });
+    D.vals[f.id]=col;
+    D.order[f.id]=f.type==='bool'?['Yes','No']:order;
+  });
+  const canon=new Map();
+  rows.forEach((r,i)=>{
+    const raw=String(r.v.t==null?'':r.v.t).trim();
+    if(raw===''){errs.push({r:i,k:'t',msg:`Record ${i+1} · target ${esc(S.target.name)} is empty`});D.y.push(null);return;}
+    if(reg){
+      const x=Number(raw);
+      if(!Number.isFinite(x)){errs.push({r:i,k:'t',msg:`Record ${i+1} · target ${esc(S.target.name)} must be a number for regression`});D.y.push(null);return;}
+      D.y.push(x);return;
+    }
+    const key=raw.toLowerCase();
+    if(!canon.has(key)){canon.set(key,raw);D.classes.push(raw);}
+    D.y.push(canon.get(key));
+  });
+  return{D,errs};
+}
+
+function buildTree(D,opts){
+  const reg=D.mode==='reg';
+  let nid=0;const all=[];
+
+  const H=(cs,n)=>{let e=0;for(const c of cs)if(c>0){const p=c/n;e-=p*Math.log2(p);}return e;};
+  function stats(idx){
+    const n=idx.length;
+    if(!reg){
+      const m=new Map();
+      for(const i of idx){const l=D.y[i];m.set(l,(m.get(l)||0)+1);}
+      const counts=D.classes.filter(c=>m.has(c)).map(c=>[c,m.get(c)]);
+      return{n,counts,imp:H(counts.map(c=>c[1]),n)};
+    }
+    let s=0;for(const i of idx)s+=D.y[i];
+    const mean=s/n;let q=0;for(const i of idx){const d=D.y[i]-mean;q+=d*d;}
+    const sd=Math.sqrt(q/n);
+    return{n,mean,sd,imp:sd,vals:idx.map(i=>D.y[i])};
+  }
+  function finish(br,n,pimp){
+    let w=0;
+    for(const b of br){b.st=stats(b.rows);b.w=b.rows.length/n;w+=b.w*b.st.imp;}
+    return{branches:br,weighted:w,score:pimp-w};
+  }
+  function evalCat(f,idx,pimp){
+    const g=new Map();
+    for(const i of idx){const v=D.vals[f.id][i];if(!g.has(v))g.set(v,[]);g.get(v).push(i);}
+    if(g.size<2)return null;
+    const br=D.order[f.id].filter(v=>g.has(v)).map(v=>({label:v,test:{k:'cat',v},rows:g.get(v)}));
+    return finish(br,idx.length,pimp);
+  }
+  function evalNum(f,idx,pimp){
+    const v=D.vals[f.id];
+    const s=idx.slice().sort((a,b)=>v[a]-v[b]||a-b);
+    let best=null;
+    for(let k=0;k<s.length-1;k++){
+      const lo=v[s[k]],hi=v[s[k+1]];
+      if(lo===hi)continue;
+      const t=f.type==='int'?lo:+((lo+hi)/2).toPrecision(10);
+      const r=finish([
+        {label:'≤ '+fmt(t),test:{k:'le',t},rows:s.slice(0,k+1)},
+        {label:'> '+fmt(t),test:{k:'gt',t},rows:s.slice(k+1)}],s.length,pimp);
+      if(!best||r.score>best.score+1e-12){best=r;best.t=t;}
+    }
+    return best;
+  }
+  const majority=counts=>{let b=counts[0];for(const c of counts)if(c[1]>b[1])b=c;return b[0];};
+
+  function grow(idx,depth,used,path,parent){
+    const st=stats(idx);
+    const node={id:nid++,depth,rows:idx,n:idx.length,st,path,parent,children:[],leaf:true};
+    all.push(node);
+    let reason=null;
+    if(reg?st.sd<=Math.max(opts.stopSD,1e-12):st.counts.length===1)reason='pure';
+    else if(opts.maxDepth&&depth>=opts.maxDepth)reason='depth';
+    const cands=[];
+    if(!reason){
+      for(const f of D.features){
+        if(!isNum(f.type)&&used.has(f.id))continue;
+        const r=isNum(f.type)?evalNum(f,idx,st.imp):evalCat(f,idx,st.imp);
+        if(r){r.f=f;cands.push(r);}
+      }
+      if(!cands.length)reason='nosplit';
+    }
+    if(reason){node.reason=reason;node.pred=reg?st.mean:majority(st.counts);return node;}
+    let best=cands[0];
+    for(const c of cands)if(c.score>best.score+1e-12)best=c;
+    node.leaf=false;
+    node.split={f:best.f,score:best.score,weighted:best.weighted,pimp:st.imp,t:best.t,branches:best.branches,
+      cands:cands.map(c=>({f:c.f,score:c.score,t:c.t,chosen:c===best}))};
+    const used2=new Set(used);if(!isNum(best.f.type))used2.add(best.f.id);
+    for(const b of best.branches){
+      const cond=isNum(best.f.type)?`${best.f.name} ${b.label}`:`${best.f.name} = ${b.label}`;
+      const ch=grow(b.rows,depth+1,used2,path.concat(cond),node);
+      ch.edge=b.label;ch.test=b.test;
+      node.children.push(ch);
+    }
+    return node;
+  }
+  const root=grow(D.y.map((_,i)=>i),0,new Set(),[],null);
+  return{root,all};
+}
+
+function predictRow(root,D,i){
+  let n=root;
+  while(!n.leaf){
+    const v=D.vals[n.split.f.id][i];
+    const nx=n.children.find(c=>{const t=c.test;return t.k==='cat'?v===t.v:t.k==='le'?v<=t.t:v>t.t;});
+    if(!nx)return null;
+    n=nx;
+  }
+  return n.pred;
+}
+
+/* ================= build action ================= */
+function build(){
+  document.querySelectorAll('#tbl .bad').forEach(el=>el.classList.remove('bad'));
+  const p=prepare();
+  if(p.fatal){say('err',p.fatal);return;}
+  if(p.errs.length){
+    p.errs.forEach(e=>{const el=document.querySelector(`#tbl [data-r="${e.r}"][data-k="${e.k}"]`);if(el)el.classList.add('bad');});
+    const shown=p.errs.slice(0,4).map(e=>e.msg).join('<br>');
+    say('err',`<b>Can’t build yet.</b><br>${shown}${p.errs.length>4?`<br>…and ${p.errs.length-4} more (highlighted in red).`:''}`);
+    return;
+  }
+  const dep=parseInt($('oDepth').value,10);
+  const stop=parseFloat($('oStop').value);
+  const opts={maxDepth:dep>0?dep:0,stopSD:stop>0?stop:0};
+  const t0=performance.now();
+  const {root,all}=buildTree(p.D,opts);
+  releaseAll();
+  S.D=p.D;S.tree=root;S.nodes=all;S.zoom=null;S.dirty=false;
+  assignColors();
+  renderTree();renderLegend();renderFoot();
+  const leaves=all.filter(n=>n.leaf).length;
+  say('ok',`Built a tree with <b>${all.length}</b> node${all.length===1?'':'s'} (${leaves} leaf${leaves===1?'':'s'}). Hover a node to see its ${S.D.mode==='reg'?'SDR':'Information Gain'} calculation, or click it to hold the tooltip.`);
+}
+$('bBuild').onclick=build;
+
+/* ================= colours ================= */
+const PALETTE=[['#dcfce7','#16a34a'],['#fee2e2','#dc2626'],['#dbeafe','#2563eb'],['#fef3c7','#d97706'],['#ede9fe','#7c3aed'],['#ccfbf1','#0d9488'],['#fce7f3','#db2777'],['#e2e8f0','#475569']];
+function assignColors(){
+  const D=S.D;
+  if(D.mode==='reg'){
+    const vals=S.nodes.filter(n=>n.leaf).map(n=>n.pred);
+    S.ramp={min:Math.min(...vals),max:Math.max(...vals)};S.colors=null;return;
+  }
+  S.ramp=null;
+  const m=new Map(),used=new Set();
+  D.classes.forEach(c=>{
+    const k=c.toLowerCase();
+    if(/^(yes|true|y)$/.test(k)){m.set(c,PALETTE[0]);used.add(0);}
+    else if(/^(no|false|n)$/.test(k)){m.set(c,PALETTE[1]);used.add(1);}
+  });
+  let pi=0;
+  D.classes.forEach(c=>{
+    if(m.has(c))return;
+    while(used.has(pi%PALETTE.length)&&used.size<PALETTE.length)pi++;
+    m.set(c,PALETTE[pi%PALETTE.length]);used.add(pi%PALETTE.length);pi++;
+  });
+  S.colors=m;
+}
+function leafStyle(n){
+  if(S.colors){const c=S.colors.get(n.pred)||PALETTE[7];return{fill:c[0],stroke:c[1]};}
+  const r=S.ramp,t=r.max>r.min?(n.pred-r.min)/(r.max-r.min):0.5;
+  const lerp=(a,b)=>Math.round(a+(b-a)*t);
+  return{fill:`rgb(${lerp(239,147)},${lerp(246,197)},${lerp(255,253)})`,stroke:'#3b82f6'};
+}
+const leafLabel=n=>S.D.mode==='reg'?fmt(n.pred,2):String(n.pred);
+
+/* ================= tree layout & SVG ================= */
+const NODE_H=36,LEVEL=104,MARGIN=28,GAP=18;
+function layout(root){
+  let maxDepth=0;
+  (function size(n){
+    n.label=n.leaf?clip(leafLabel(n),24):clip(n.split.f.name,24);
+    n.w=Math.max(58,meas(n.label,600,13)+28);
+    n.elab=n.edge==null?'':clip(n.edge,22);
+    n.elw=n.elab?meas(n.elab,500,11.5)+16:0;
+    n.slot=Math.max(n.w,n.elw)+GAP;
+    let sum=0;
+    n.children.forEach(c=>{size(c);sum+=c.bw;});
+    n.cw=sum;n.bw=Math.max(n.slot,sum);
+    if(n.depth>maxDepth)maxDepth=n.depth;
+  })(root);
+  (function place(n,x0){
+    n.y=MARGIN+n.depth*LEVEL+NODE_H/2;
+    if(!n.children.length){n.x=x0+n.bw/2;return;}
+    let cur=x0+(n.bw-n.cw)/2;
+    n.children.forEach(c=>{place(c,cur);cur+=c.bw;});
+    const a=n.children[0],b=n.children[n.children.length-1];
+    n.x=n.cw>=n.slot?(a.x+b.x)/2:x0+n.bw/2;
+  })(root,MARGIN);
+  return{W:root.bw+2*MARGIN,H:maxDepth*LEVEL+NODE_H+2*MARGIN};
+}
+
+let dims={W:0,H:0};
+function renderTree(){
+  const root=S.tree;
+  if(!root){$('svgHost').innerHTML='';$('ph').style.display='flex';return;}
+  $('ph').style.display='none';
+  dims=layout(root);
+  let edges='',labels='',nodes='';
+  const reg=S.D.mode==='reg';
+  S.nodes.forEach(n=>{
+    if(n.parent){
+      const p=n.parent,pb=p.y+NODE_H/2,ct=n.y-NODE_H/2,my=pb+20;
+      edges+=`<path class="edge" data-c="${n.id}" d="M${p.x},${pb} V${my} H${n.x} V${ct}"/>`;
+      labels+=`<g class="elab" data-c="${n.id}"><rect x="${n.x-n.elw/2}" y="${ct-30}" width="${n.elw}" height="19" rx="9.5"/><text x="${n.x}" y="${ct-20}" text-anchor="middle" dominant-baseline="central">${esc(n.elab)}</text></g>`;
+    }
+    const x=n.x-n.w/2,y=n.y-NODE_H/2;
+    if(n.leaf){
+      const st=leafStyle(n);
+      nodes+=`<g class="node leaf" data-id="${n.id}"><rect x="${x}" y="${y}" width="${n.w}" height="${NODE_H}" rx="${NODE_H/2}" fill="${st.fill}" stroke="${st.stroke}" stroke-width="2"/><text x="${n.x}" y="${n.y}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="700" fill="#0f172a">${esc(n.label)}</text></g>`;
+    }else{
+      nodes+=`<g class="node dn" data-id="${n.id}"><rect x="${x}" y="${y}" width="${n.w}" height="${NODE_H}" rx="8" fill="#fff" stroke="#334155" stroke-width="1.8"/><text x="${n.x}" y="${n.y}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="600" fill="#0f172a">${esc(n.label)}</text></g>`;
+    }
+  });
+  $('svgHost').innerHTML=`<svg id="svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${dims.W} ${dims.H}" role="img" aria-label="Decision tree">${edges}${labels}${nodes}</svg>`;
+  applyScale();
+}
+
+function fitScale(){
+  const cw=$('wrap').clientWidth-24;
+  return Math.max(0.62,Math.min(1.15,cw/dims.W));
+}
+function applyScale(){
+  const svg=$('svg');if(!svg)return;
+  const s=S.zoom==null?fitScale():S.zoom;
+  svg.setAttribute('width',Math.round(dims.W*s));
+  svg.setAttribute('height',Math.round(dims.H*s));
+  positionPinned();
+}
+function zoomBy(k){
+  if(!S.tree)return;
+  const cur=S.zoom==null?fitScale():S.zoom;
+  S.zoom=Math.max(0.3,Math.min(2.5,cur*k));applyScale();
+}
+$('zIn').onclick=()=>zoomBy(1.2);
+$('zOut').onclick=()=>zoomBy(1/1.2);
+$('zFit').onclick=()=>{S.zoom=null;applyScale();};
+new ResizeObserver(()=>{if(S.zoom==null)applyScale();}).observe($('wrap'));
+
+/* ================= legend & footer ================= */
+function renderLegend(){
+  const D=S.D;
+  $('sSub').textContent=D.mode==='reg'?'ID3 with Standard Deviation Reduction · predicts the mean of each leaf':'ID3 with Information Gain (entropy) · predicts the majority class of each leaf';
+  let h='<span class="it"><i class="dn"></i>Feature split</span>';
+  if(D.mode==='reg')h+='<span class="it"><i class="lf ramp"></i>Leaf = predicted '+esc(D.tname)+' (low → high)</span>';
+  else h+=D.classes.map(c=>{const s=S.colors.get(c);return `<span class="it"><i class="lf" style="background:${s[0]};border-color:${s[1]}"></i>${esc(clip(c,18))}</span>`;}).join('');
+  $('legend').innerHTML=h;
+}
+
+function renderFoot(){
+  const el=$('foot');
+  if(!S.tree){el.innerHTML='';return;}
+  const D=S.D,all=S.nodes,leaves=all.filter(n=>n.leaf).length;
+  const depth=Math.max(...all.map(n=>n.depth));
+  let h=`<span class="chip">Nodes <b>${all.length}</b></span><span class="chip">Leaves <b>${leaves}</b></span><span class="chip">Depth <b>${depth}</b></span>`;
+  if(!S.tree.leaf)h+=`<span class="chip">Root split <b>${esc(S.tree.split.f.name)}</b> · ${D.mode==='reg'?'SDR':'IG'} <b>${f4(S.tree.split.score)}</b></span>`;
+  const preds=D.y.map((_,i)=>predictRow(S.tree,D,i));
+  if(D.mode==='cls'){
+    const ok=preds.filter((p,i)=>p===D.y[i]).length;
+    h+=`<span class="chip good">Training accuracy <b>${(100*ok/D.n).toFixed(1)}%</b> (${ok}/${D.n})</span>`;
+  }else{
+    let se=0,mean=D.y.reduce((a,b)=>a+b,0)/D.n,tot=0;
+    preds.forEach((p,i)=>{se+=(p-D.y[i])**2;tot+=(D.y[i]-mean)**2;});
+    h+=`<span class="chip good">Training RMSE <b>${fmt(Math.sqrt(se/D.n),3)}</b></span><span class="chip good">R² <b>${tot>0?fmt(1-se/tot,3):'–'}</b></span>`;
+  }
+  if(S.dirty)h+='<span class="chip stale">Data or settings changed — press Build tree to refresh</span>';
+  el.innerHTML=h;
+}
+
+/* ================= hover tooltip ================= */
+const tip=$('tip');
+function tipHTML(n){
+  const D=S.D,reg=D.mode==='reg';
+  const imp=reg?'SD':'E';
+  const dist=st=>reg?`mean ${fmt(st.mean)} · SD ${f4(st.sd)}`:st.counts.map(c=>`${esc(c[0])} ${c[1]}`).join(', ');
+  let h='';
+  if(n.path.length)h+=`<div class="path">${n.path.map(esc).join(' → ')}</div>`;
+  if(n.leaf){
+    h+=`<div class="th">Prediction: <b>${esc(reg?fmt(n.pred):n.pred)}</b></div>`;
+    h+=`<div class="m">${n.n} record${n.n>1?'s':''} · ${dist(n.st)}</div>`;
+    h+=reg?`<div class="f">leaf value = mean of the ${n.n} target value${n.n>1?'s':''}</div>`:`<div class="f">Entropy = ${f4(n.st.imp)}</div>`;
+    if(reg&&n.st.vals.length>1)h+=`<div class="m">values: ${n.st.vals.slice(0,14).map(v=>fmt(v,3)).join(', ')}${n.st.vals.length>14?', …':''}</div>`;
+    const why={pure:reg?`SD ≤ stop threshold`:'Pure — every record has the same class',depth:'Maximum depth reached',nosplit:'No feature left that can split these records further'}[n.reason];
+    h+=`<div class="m">${why}${!reg&&n.reason!=='pure'?' → majority class':''}${reg&&n.reason!=='pure'?' → mean':''}</div>`;
+    return h;
+  }
+  const sp=n.split,f=sp.f;
+  const title=isNum(f.type)?`${esc(f.name)} ≤ ${fmt(sp.t)}`:esc(f.name);
+  h+=`<div class="th">Split on <b>${title}</b></div>`;
+  h+=`<div class="big"><span>${reg?'Std. Deviation Reduction (SDR)':'Information Gain (IG)'}</span><b>${f4(sp.score)}</b></div>`;
+  h+=`<div class="f">${reg?'SDR':'IG'} = ${imp}(S) − Σ (|Sᵥ|/|S|)·${imp}(Sᵥ)</div>`;
+  h+=`<div class="f">&nbsp;&nbsp;&nbsp;= ${f4(sp.pimp)} − ${f4(sp.weighted)} = <b>${f4(sp.score)}</b></div>`;
+  h+=`<div class="m">S: ${n.n} records · ${dist(n.st)}</div>`;
+  h+=`<table><tr><th>Branch</th><th>n</th><th>${reg?'mean':'classes'}</th><th>${imp}</th><th>weight</th></tr>`;
+  sp.branches.forEach(b=>{
+    h+=`<tr><td>${esc(b.label)}</td><td>${b.rows.length}</td><td>${reg?fmt(b.st.mean,3):b.st.counts.map(c=>esc(c[0])+' '+c[1]).join(', ')}</td><td>${f4(b.st.imp)}</td><td>${b.rows.length}/${n.n}</td></tr>`;
+  });
+  h+='</table>';
+  const mx=Math.max(...sp.cands.map(c=>c.score),1e-12);
+  h+=`<div class="sub">${reg?'SDR':'Gain'} of every candidate here</div>`;
+  sp.cands.forEach(c=>{
+    const nm=isNum(c.f.type)?`${c.f.name} ≤ ${fmt(c.t)}`:c.f.name;
+    h+=`<div class="cand${c.chosen?' ch':''}"><span title="${esc(nm)}">${esc(nm)}</span><span class="bar"><i style="width:${Math.max(0,c.score/mx*100)}%"></i></span><span>${f4(c.score)}</span></div>`;
+  });
+  return h;
+}
+
+let hovId=null,pinId=null,lastX=0,lastY=0;
+const ptip=$('ptip');
+const nodeEl=id=>{const s=$('svg');return s?s.querySelector(`.node[data-id="${id}"]`):null;};
+
+/* repaint node / edge / table-row highlights from the hovered and held nodes */
+function refresh(){
+  document.querySelectorAll('.node.hv,.node.pin,.edge.on,.elab.on').forEach(e=>e.classList.remove('hv','pin','on'));
+  document.querySelectorAll('#tbl tr.hl').forEach(e=>e.classList.remove('hl'));
+  const svg=$('svg');if(!svg)return;
+  const mark=(id,cls)=>{
+    const n=S.nodes[id];if(!n)return;
+    const el=nodeEl(id);if(el)el.classList.add(cls);
+    for(let c=n;c&&c.parent;c=c.parent)svg.querySelectorAll(`[data-c="${c.id}"]`).forEach(e=>e.classList.add('on'));
+  };
+  if(pinId!=null)mark(pinId,'pin');
+  if(hovId!=null)mark(hovId,'hv');
+  const rid=hovId!=null?hovId:pinId;
+  if(rid!=null&&!S.dirty&&S.nodes[rid])S.nodes[rid].rows.forEach(r=>{const tr=document.querySelector(`#tbl tr[data-r="${r}"]`);if(tr)tr.classList.add('hl');});
+}
+
+/* hover tooltip: follows the cursor; not shown for the node that is already held */
+function placeTip(x,y){
+  const w=tip.offsetWidth,h=tip.offsetHeight,vw=innerWidth,vh=innerHeight;
+  let l=x+16,t=y+16;
+  if(l+w>vw-8)l=Math.max(8,x-w-16);
+  if(t+h>vh-8)t=Math.max(8,vh-h-8);
+  tip.style.left=l+'px';tip.style.top=t+'px';
+}
+function setHover(id,x,y){
+  if(hovId!==id){
+    hovId=id;refresh();
+    if(id!=null&&id!==pinId)tip.innerHTML=tipHTML(S.nodes[id]);
+  }
+  if(id!=null&&id!==pinId){tip.style.display='block';placeTip(x,y);}
+  else tip.style.display='none';
+}
+
+/* held tooltip: stays beside its node until released or replaced */
+function positionPinned(){
+  if(pinId==null){ptip.style.display='none';return;}
+  const el=nodeEl(pinId);
+  if(!el){ptip.style.display='none';return;}
+  const r=el.getBoundingClientRect(),wr=$('wrap').getBoundingClientRect();
+  const visible=r.bottom>wr.top&&r.top<wr.bottom&&r.right>wr.left&&r.left<wr.right;
+  ptip.style.display='block';
+  ptip.style.visibility=visible?'visible':'hidden';
+  const w=ptip.offsetWidth,h=ptip.offsetHeight,vw=innerWidth,vh=innerHeight;
+  let l=r.right+12;
+  if(l+w>vw-8)l=r.left-w-12;
+  if(l<8)l=Math.max(8,Math.min(vw-w-8,r.left));
+  let t=r.top;
+  if(t+h>vh-8)t=Math.max(8,vh-h-8);
+  ptip.style.left=l+'px';ptip.style.top=t+'px';
+}
+function pin(id){
+  const n=S.nodes[id];if(!n)return;
+  pinId=id;
+  ptip.innerHTML='<div class="pinbadge">Held — click the node again or press Esc to release</div>'+tipHTML(n);
+  refresh();positionPinned();
+  if(hovId===id)tip.style.display='none';
+}
+function unpin(){
+  if(pinId==null)return;
+  pinId=null;ptip.style.display='none';refresh();
+  if(hovId!=null&&S.nodes[hovId]){tip.innerHTML=tipHTML(S.nodes[hovId]);tip.style.display='block';placeTip(lastX,lastY);}
+}
+function releaseAll(){
+  pinId=null;hovId=null;
+  tip.style.display='none';ptip.style.display='none';
+  refresh();
+}
+
+const host=$('svgHost');
+host.addEventListener('mousemove',e=>{
+  lastX=e.clientX;lastY=e.clientY;
+  const g=e.target.closest('.node');
+  setHover(g?+g.dataset.id:null,lastX,lastY);
+});
+host.addEventListener('mouseleave',()=>setHover(null));
+$('wrap').addEventListener('click',e=>{
+  lastX=e.clientX;lastY=e.clientY;
+  if(e.pointerType==='touch'||e.pointerType==='pen'){hovId=null;tip.style.display='none';}
+  const g=e.target.closest('.node');
+  if(!g){unpin();return;}                 // click on empty space releases
+  const id=+g.dataset.id;
+  if(pinId===id)unpin();                  // click the held node again: release
+  else pin(id);                           // click another node: the hold moves (resets) to it
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')unpin();});
+$('wrap').addEventListener('scroll',()=>{setHover(null);positionPinned();});
+addEventListener('resize',positionPinned);
+
+/* ================= init ================= */
+loadPreset('xbox');
+window.__dt={S,prepare,buildTree,predictRow};
+})();
+</script>
+</body>
+</html>
