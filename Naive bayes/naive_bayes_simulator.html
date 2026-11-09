@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Naive Bayes Simulator</title>
+<style>
+:root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--line2:#cbd5e1;--soft:#f8fafc;--accent:#2563eb}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:#fff;color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.app{display:grid;grid-template-columns:minmax(420px,560px) minmax(0,1fr);min-height:100vh}
+aside{border-right:1px solid var(--line);padding:18px 16px 32px;position:sticky;top:0;height:100vh;overflow-y:auto}
+main{padding:18px 20px 32px;min-width:0;display:flex;flex-direction:column;gap:14px}
+h1{font-size:18px;margin:0 0 2px}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+section{margin:0 0 18px}
+h2{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px}
+h2 select{text-transform:none;letter-spacing:0;font-weight:500;font-size:12.5px;padding:3px 6px}
+h3{margin:0 0 8px;font-size:13.5px}
+button,select,input{font:inherit}
+button{border:1px solid var(--line2);background:#fff;color:var(--ink);border-radius:8px;padding:6px 11px;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover:not(:disabled){background:var(--soft);border-color:#94a3b8}
+select,input[type=text],input[type=number]{border:1px solid var(--line2);border-radius:8px;padding:6px 8px;color:var(--ink);background:#fff;min-width:0}
+input:focus,select:focus{outline:2px solid #bfdbfe;border-color:var(--accent)}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+.muted{color:var(--muted)}
+.badge{text-transform:none;letter-spacing:0;font-weight:600;font-size:11.5px;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:99px;padding:1px 10px}
+
+/* model */
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.seg button{text-align:left;line-height:1.3;padding:8px 10px}
+.seg button small{display:block;color:var(--muted);font-size:11.5px;font-weight:400}
+.seg button.on{border-color:var(--accent);background:#eff6ff;color:#1e40af;font-weight:600}
+.seg button.on small{color:#3b82f6}
+#msg{margin-top:8px;font-size:12.5px}
+#msg.info,#msg.err{padding:7px 10px;border-radius:8px}
+#msg.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+#msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+
+/* features */
+.addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 10px;max-height:132px;overflow:auto}
+.fchip{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:99px;background:#fff;padding:0 2px 0 9px}
+.fchip input{border:0;background:transparent;padding:3px 2px;outline:none;min-width:3ch;border-radius:0}
+.fchip input:focus{outline:none;border:0;box-shadow:0 1px 0 var(--accent)}
+.fchip .x{border:0;background:none;padding:0 7px;color:var(--muted);border-radius:99px}
+.fchip .x:hover{color:#b91c1c;background:#fef2f2}
+.empty-f{color:var(--muted);font-size:12.5px}
+.trow{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.trow input{flex:1;max-width:220px}
+
+/* dataset */
+.tablewrap{border:1px solid var(--line);border-radius:10px;max-height:330px;overflow:auto;margin-bottom:8px}
+.tablewrap table{border-collapse:separate;border-spacing:0;width:max-content;font-size:13px}
+.tablewrap th{position:sticky;top:0;z-index:2;background:var(--soft);text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:600;white-space:nowrap}
+.tablewrap th small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+.tablewrap td{padding:2px 3px;border-bottom:1px solid #f1f5f9;background:#fff}
+.tablewrap .s0{position:sticky;left:0;width:50px;min-width:50px;max-width:50px}
+.tablewrap .s1{position:sticky;left:50px;box-shadow:1px 0 0 var(--line)}
+.tablewrap th.s0,.tablewrap th.s1{z-index:4}
+.tablewrap td.s0,.tablewrap td.s1{z-index:3}
+.tablewrap th.cls{background:#eff6ff;color:#1e40af}
+.tablewrap th.cls small{color:#3b82f6}
+.tablewrap td.n{padding:2px 4px;vertical-align:middle;color:var(--muted);font-size:12px}
+.nn{display:flex;align-items:center;justify-content:space-between}
+.nn .rdel{border:0;background:transparent;padding:0 4px;color:#94a3b8;border-radius:4px}
+.nn .rdel:hover{color:#b91c1c;background:#fef2f2}
+.tablewrap td input,.tablewrap td select{width:66px;border:1px solid transparent;border-radius:6px;padding:5px 5px;background:transparent}
+.tablewrap td.s1 input{width:96px;font-weight:600}
+.tablewrap td input:hover,.tablewrap td select:hover{border-color:var(--line2)}
+.tablewrap td input:focus,.tablewrap td select:focus{outline:none;border-color:var(--accent);background:#fff}
+.tablewrap td input.bad{border-color:#f87171;background:#fef2f2}
+tr.inc td{background:#fffbeb}
+tr.inc td.n{box-shadow:inset 3px 0 0 #f59e0b}
+
+/* stats tables */
+.kv{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{font-size:12px;border:1px solid var(--line);background:var(--soft);border-radius:99px;padding:2px 10px}
+.chip b{font-variant-numeric:tabular-nums}
+.ct{border-collapse:collapse;width:100%;font-size:12.5px}
+.ct th{text-align:left;color:var(--muted);font-weight:600;padding:4px 8px 4px 0;border-bottom:1px solid var(--line);white-space:nowrap;background:#fff}
+.ct td{padding:4px 8px 4px 0;border-bottom:1px solid #f1f5f9;vertical-align:top;font-variant-numeric:tabular-nums}
+.ct td small{display:block;color:var(--muted);font-size:11px}
+.ct tr.tot td{background:var(--soft);font-weight:600}
+.ct td.f{font-weight:600;white-space:nowrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.pbar{height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin:2px 0 3px;min-width:60px}
+.pbar i{display:block;height:100%}
+.scrollbox{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:2px 10px}
+.scrollbox .ct th{position:sticky;top:0}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#334155;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin:0 0 8px}
+
+/* smoothing */
+.smcard{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.pill{font-size:11.5px;font-weight:700;padding:1px 10px;border-radius:99px;border:1px solid;margin-right:6px}
+.pill.yes{color:#15803d;background:#f0fdf4;border-color:#86efac}
+.pill.warn{color:#92400e;background:#fffbeb;border-color:#fcd34d}
+.pill.no{color:#b91c1c;background:#fef2f2;border-color:#fca5a5}
+.smctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.smctl input{width:96px;padding:4px 7px}
+.smctl button{padding:3px 9px;font-size:12px}
+.issues{margin:8px 0 0;font-size:12px;max-height:150px;overflow:auto}
+.issues .grp{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:4px 0}
+.issues .grp>b{margin-right:2px}
+.issues span{font-size:11.5px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:6px;padding:1px 7px}
+.issues em{font-style:normal;color:var(--muted);font-size:11.5px}
+.alert{margin-top:8px;font-size:12.5px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:6px 9px}
+
+/* right side */
+.panel{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.panel>p{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+.inputs{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px 10px}
+.inputs label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+.inputs label span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink);font-weight:600}
+.inputs input,.inputs select{width:100%}
+.textrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.textrow input{flex:1}
+.note{font-size:12px;color:var(--muted);margin:-4px 0 10px}
+.hero{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid;border-radius:12px;padding:12px 16px;margin-bottom:12px}
+.hero .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.hero b{font-size:24px;line-height:1.1}
+.hero em{font-style:normal;color:var(--muted);font-size:13px}
+.pb{display:grid;grid-template-columns:minmax(80px,150px) 1fr 70px;gap:10px;align-items:center;margin:6px 0}
+.pb .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb .bar{height:14px;background:#f1f5f9;border-radius:7px;overflow:hidden}
+.pb .bar i{display:block;height:100%;border-radius:7px;transition:width .25s}
+.pb .pc{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.steps{margin:12px 0 0;padding:10px 12px;background:var(--soft);border:1px solid var(--line);border-radius:10px;font-size:12.5px}
+.steps div{margin:2px 0}
+.steps code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:#334155}
+.calc{overflow:auto}
+.calc table{border-collapse:collapse;width:100%;font-size:12.5px}
+.calc th{text-align:left;padding:6px 10px;border-bottom:2px solid var(--line);white-space:nowrap}
+.calc td{padding:5px 10px;border-bottom:1px solid #f1f5f9;vertical-align:top;font-variant-numeric:tabular-nums}
+.calc td small{display:block;color:var(--muted);font-size:11px}
+.calc td.t{font-weight:600;white-space:nowrap}
+.calc tr.sum td{background:var(--soft);font-weight:700}
+.calc tr.sum2 td{background:#eff6ff;font-weight:700}
+.calc td.win,.calc th.win{box-shadow:inset 0 0 0 9999px rgba(37,99,235,.05)}
+.ph{color:var(--muted);padding:6px 2px}
+.warnline{color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 10px}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <h1>Naive Bayes Simulator</h1>
+  <p class="sub">Learn a Naive Bayes classifier from your data, then classify a new sample step by step.</p>
+
+  <section>
+    <h2>Model</h2>
+    <div class="seg" id="modelSeg">
+      <button data-m="mult">Multinomial<small>counts · default</small></button>
+      <button data-m="gauss">Gaussian<small>real numbers</small></button>
+      <button data-m="bern">Bernoulli<small>binary 0 / 1</small></button>
+    </div>
+    <p class="hint" id="mDesc"></p>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Features <span class="badge" id="fBadge"></span></h2>
+    <div class="addrow">
+      <input type="text" id="fName" placeholder="New feature, e.g. free" aria-label="New feature name">
+      <button id="bAddF">+ Add</button>
+    </div>
+    <div class="chips" id="fList"></div>
+    <div class="trow"><label for="tName">Class column</label><input type="text" id="tName" placeholder="Class"></div>
+  </section>
+
+  <section>
+    <h2>Dataset
+      <select id="preset" aria-label="Load an example">
+        <option value="">Load an example…</option>
+        <option value="spam">Spam filter · word counts (notebook)</option>
+        <option value="freewin">Free / Win emails · grouped (notebook)</option>
+        <option value="iris">Iris flowers · measurements</option>
+      </select>
+    </h2>
+    <div class="tablewrap"><table id="tbl"></table></div>
+    <div class="row">
+      <button id="bAddR">+ Add record</button>
+      <button id="bClearR">Clear records</button>
+    </div>
+    <p class="hint" id="dstat"></p>
+    <datalist id="dl-cls"></datalist>
+  </section>
+
+  <section>
+    <h2>Classes and priors</h2>
+    <div id="sumBox"></div>
+  </section>
+
+  <section>
+    <h2>Conditional probabilities</h2>
+    <div id="condBox"></div>
+  </section>
+
+  <section>
+    <h2>Smoothing</h2>
+    <div class="smcard">
+      <div id="smInfo"></div>
+      <div class="smctl" id="ctlA">
+        <label>Additive α <input type="number" id="oAlpha" min="0" step="any"></label>
+        <button data-a="0">α = 0 (none)</button><button data-a="1">α = 1 (Laplace)</button>
+      </div>
+      <div class="smctl" id="ctlE" hidden>
+        <label>Variance smoothing ε <input type="number" id="oEps" min="0" step="any"></label>
+        <button data-e="0">ε = 0 (none)</button><button data-e="1e-9">ε = 1e-9 (default)</button>
+      </div>
+    </div>
+  </section>
+</aside>
+
+<main>
+  <div class="panel">
+    <h3>New sample to classify</h3>
+    <p id="inHint"></p>
+    <div class="textrow" id="textRow">
+      <input type="text" id="txt" placeholder="Type a message to fill the word features" aria-label="Message text">
+      <button id="bText">Fill</button>
+    </div>
+    <div class="note" id="txtNote"></div>
+    <div class="inputs" id="inputs"></div>
+    <div class="row" style="margin-top:10px"><button id="bReset">Reset sample</button></div>
+  </div>
+
+  <div class="panel">
+    <h3>Prediction</h3>
+    <div id="pOut"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Calculation by hand</h3>
+    <div class="calc" id="pCalc"></div>
+  </div>
+</main>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ================= helpers ================= */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CC=['#2563eb','#d97706','#0d9488','#7c3aed','#db2777','#475569','#16a34a','#dc2626'];
+const col=i=>CC[i%CC.length];
+const MINUS='−';
+const fl=x=>{
+  if(x===-Infinity)return MINUS+'∞';
+  if(x===Infinity)return '∞';
+  if(!Number.isFinite(x))return '–';
+  const a=Math.abs(x);
+  if(a<5e-5)return '0.0000';
+  return (x<0?MINUS:'')+(a>=1e6?a.toExponential(3):a.toFixed(4));
+};
+const fp=p=>{
+  if(!Number.isFinite(p))return '–';
+  if(p===0)return '0';
+  if(p>=1e6||p<1e-3)return p.toExponential(2);
+  return p.toFixed(4);
+};
+const fs=x=>Number.isFinite(x)?String(+x.toPrecision(4)):'–';
+const pct=p=>(p*100).toFixed(2)+'%';
+const tok=s=>s.toLowerCase().match(/[\p{L}\p{N}_]{2,}/gu)||[];
+
+const MODELS={
+  mult:{name:'Multinomial',badge:'Count · integer ≥ 0',short:'count ≥ 0',
+    desc:'Features are non-negative whole-number counts, such as how many times each word appears. Every class has a probability θ for each feature, and a bigger count counts as stronger evidence.'},
+  gauss:{name:'Gaussian',badge:'Real number',short:'real',
+    desc:'Features are real numbers, such as measurements. Inside each class, every feature is assumed to follow a normal (bell-curve) distribution with its own mean and variance.'},
+  bern:{name:'Bernoulli',badge:'Binary · 0 or 1',short:'0 / 1',
+    desc:'Features are yes/no flags (1 = present, 0 = absent). A missing feature (0) also counts as evidence, using P(feature = 0 | class).'}
+};
+
+/* ================= state ================= */
+let fid=0;
+const S={model:'mult',features:[],target:'Class',rows:[],alpha:1,eps:1e-9,input:{},origin:null};
+let M={ok:false,msg:''};
+
+/* ================= examples ================= */
+const SPAM_TEXTS=['free prize win now','claim your free reward','winner cash offer','limited offer click now','win money free bonus','exclusive deal claim prize',
+  'project meeting tomorrow','please review the report','lunch at noon with the team','family dinner tonight','schedule class discussion',"notes from today's lecture"];
+const PRESETS={
+  spam:()=>{
+    const vocab=[...new Set(SPAM_TEXTS.flatMap(tok))].sort();
+    return{model:'mult',alpha:1,eps:1e-9,target:'Class',feats:vocab,text:'limited class offer',
+      rows:SPAM_TEXTS.map((t,i)=>{const c={};tok(t).forEach(w=>{c[w]=(c[w]||0)+1;});return{c:i<6?'Spam':'Not Spam',w:1,vals:vocab.map(w=>c[w]||0)};})};
+  },
+  freewin:()=>({model:'bern',alpha:0,eps:1e-9,target:'Class',feats:['Free','Win'],input:{Free:'1',Win:'1'},
+    rows:[['Spam',1,1,180],['Spam',1,0,120],['Spam',0,1,60],['Spam',0,0,40],['Not Spam',1,1,3],['Not Spam',1,0,57],['Not Spam',0,1,27],['Not Spam',0,0,513]]
+      .map(([c,a,b,w])=>({c,w,vals:[a,b]}))}),
+  iris:()=>({model:'gauss',alpha:1,eps:1e-9,target:'Species',feats:['Sepal_Length','Sepal_Width','Petal_Length','Petal_Width'],
+    input:{Sepal_Length:'5.9',Sepal_Width:'3.0',Petal_Length:'4.2',Petal_Width:'1.5'},
+    rows:[
+      ['setosa',5.1,3.5,1.4,0.2],['setosa',4.9,3.0,1.4,0.2],['setosa',4.7,3.2,1.3,0.2],['setosa',4.6,3.1,1.5,0.2],['setosa',5.0,3.6,1.4,0.2],
+      ['versicolor',7.0,3.2,4.7,1.4],['versicolor',6.4,3.2,4.5,1.5],['versicolor',6.9,3.1,4.9,1.5],['versicolor',5.5,2.3,4.0,1.3],['versicolor',6.5,2.8,4.6,1.5],
+      ['virginica',6.3,3.3,6.0,2.5],['virginica',5.8,2.7,5.1,1.9],['virginica',7.1,3.0,5.9,2.1],['virginica',6.3,2.9,5.6,1.8],['virginica',6.5,3.0,5.8,2.2]
+    ].map(r=>({c:r[0],w:1,vals:r.slice(1)}))})
+};
+
+function defaultCell(){return S.model==='gauss'?'':'0';}
+
+function loadPreset(key){
+  const p=PRESETS[key]();
+  S.model=p.model;S.alpha=p.alpha;S.eps=p.eps;S.target=p.target;S.origin=null;
+  S.features=p.feats.map(n=>({id:'f'+(++fid),name:n}));
+  S.rows=p.rows.map(r=>{const v={t:r.c,w:String(r.w)};S.features.forEach((f,j)=>{v[f.id]=String(r.vals[j]);});return{v};});
+  S.input={};
+  S.features.forEach(f=>{S.input[f.id]=p.input&&p.input[f.name]!=null?p.input[f.name]:'0';});
+  $('txt').value=p.text||'';
+  say('');
+  renderAll();
+  if(p.text)applyText();
+}
+
+/* ================= rendering: left controls ================= */
+function say(kind,html){const m=$('msg');m.className=kind||'';m.innerHTML=html||'';}
+
+function renderModel(){
+  document.querySelectorAll('#modelSeg button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.model));
+  $('mDesc').textContent=MODELS[S.model].desc;
+  $('fBadge').textContent='type: '+MODELS[S.model].badge;
+  $('ctlA').hidden=S.model==='gauss';
+  $('ctlE').hidden=S.model!=='gauss';
+  $('oAlpha').value=S.alpha;
+  $('oEps').value=S.eps;
+  $('textRow').hidden=S.model==='gauss';$('txtNote').hidden=S.model==='gauss';
+  $('tName').value=S.target;
+}
+
+function renderFeatures(){
+  const el=$('fList');
+  if(!S.features.length){el.innerHTML='<div class="empty-f">No features yet — add one above.</div>';return;}
+  el.innerHTML=S.features.map(f=>`<span class="fchip" data-f="${f.id}"><input type="text" class="fn" value="${esc(f.name)}" style="width:${Math.max(4,f.name.length+1)}ch" aria-label="Feature name"><button class="x" title="Remove feature" aria-label="Remove feature">×</button></span>`).join('');
+}
+
+function cellHTML(r,f){
+  const val=S.rows[r].v[f.id]==null?'':S.rows[r].v[f.id];
+  const base=`data-r="${r}" data-k="${f.id}"`;
+  if(S.model==='bern')return `<select ${base}><option value=""${val===''?' selected':''}>–</option><option value="0"${val==='0'?' selected':''}>0</option><option value="1"${val==='1'?' selected':''}>1</option></select>`;
+  if(S.model==='mult')return `<input type="number" min="0" step="1" value="${esc(val)}" ${base}>`;
+  return `<input type="number" step="any" value="${esc(val)}" ${base}>`;
+}
+
+function renderTable(){
+  let h=`<thead><tr><th class="s0">#</th><th class="s1 cls">${esc(S.target||'Class')}<small>class</small></th><th>Count<small>× records</small></th>`;
+  S.features.forEach(f=>{h+=`<th>${esc(f.name)}<small>${MODELS[S.model].short}</small></th>`;});
+  h+='</tr></thead><tbody>';
+  S.rows.forEach((row,r)=>{
+    h+=`<tr data-r="${r}"><td class="s0 n"><div class="nn"><span>${r+1}</span><button class="rdel" title="Delete record" aria-label="Delete record">×</button></div></td>`+
+       `<td class="s1"><input type="text" list="dl-cls" value="${esc(row.v.t||'')}" data-r="${r}" data-k="t"></td>`+
+       `<td><input type="number" min="1" step="1" value="${esc(row.v.w==null?'1':row.v.w)}" data-r="${r}" data-k="w" style="width:56px"></td>`;
+    S.features.forEach(f=>{h+=`<td>${cellHTML(r,f)}</td>`;});
+    h+='</tr>';
+  });
+  if(!S.rows.length)h+=`<tr><td colspan="${S.features.length+3}" style="padding:14px;color:var(--muted);text-align:center">No records yet.</td></tr>`;
+  $('tbl').innerHTML=h+'</tbody>';
+  updateDatalist();
+}
+
+function updateDatalist(){
+  const seen=new Set();
+  S.rows.forEach(r=>{const v=String(r.v.t||'').trim();if(v)seen.add(v);});
+  $('dl-cls').innerHTML=[...seen].map(v=>`<option value="${esc(v)}">`).join('');
+}
+
+function renderInputs(){
+  const box=$('inputs');
+  $('inHint').textContent={
+    mult:'Enter how many times each feature occurs in the new sample. Features left at 0 do not affect the score.',
+    gauss:'Enter a measurement for every feature of the new sample.',
+    bern:'Mark each feature as present (1) or absent (0) in the new sample.'}[S.model];
+  if(!S.features.length){box.innerHTML='<div class="ph">Add features first.</div>';return;}
+  box.innerHTML=S.features.map(f=>{
+    const v=S.input[f.id]==null?'':S.input[f.id];
+    const base=`data-f="${f.id}"`;
+    const ctl=S.model==='bern'
+      ?`<select ${base}><option value="0"${v==='0'?' selected':''}>0 · absent</option><option value="1"${v==='1'?' selected':''}>1 · present</option></select>`
+      :`<input type="number" ${S.model==='mult'?'min="0" step="1"':'step="any"'} value="${esc(v)}" ${base}>`;
+    return `<label><span title="${esc(f.name)}">${esc(f.name)}</span>${ctl}</label>`;
+  }).join('');
+}
+
+function renderAll(){
+  renderModel();renderFeatures();renderTable();renderInputs();update();
+}
+
+/* ================= model switching (types change with the model) ================= */
+function convertValue(str,model){
+  const s=String(str==null?'':str).trim();
+  if(s==='')return '';
+  const x=Number(s);
+  if(!Number.isFinite(x))return '';
+  if(model==='mult')return String(Math.max(0,Math.round(x)));
+  if(model==='bern')return x>0?'1':'0';
+  return s;
+}
+function switchModel(m){
+  if(m===S.model)return;
+  if(!S.origin)S.origin={model:S.model,rows:JSON.parse(JSON.stringify(S.rows)),input:{...S.input}};
+  const base=S.origin;
+  let changed=0;
+  if(m===base.model){
+    S.rows=JSON.parse(JSON.stringify(base.rows));S.input={...base.input};S.origin=null;
+  }else{
+    S.rows=base.rows.map(r=>{
+      const v={...r.v};
+      S.features.forEach(f=>{
+        const nv=convertValue(r.v[f.id],m);
+        const ov=String(r.v[f.id]==null?'':r.v[f.id]).trim();
+        if(ov!==''&&Number(ov)!==Number(nv))changed++;
+        v[f.id]=nv;
+      });
+      return{v};
+    });
+    S.input={};
+    S.features.forEach(f=>{S.input[f.id]=convertValue(base.input[f.id],m);if(S.input[f.id]==='')S.input[f.id]=m==='gauss'?'':'0';});
+  }
+  S.model=m;
+  const how={
+    mult:'values are now whole-number counts (rounded, negatives set to 0)',
+    bern:'values are now binary flags (any value above 0 becomes 1)',
+    gauss:'values are now real numbers'}[m];
+  say('info',`Switched to <b>${MODELS[m].name}</b> — ${how}${changed?` · ${changed} value${changed>1?'s':''} changed`:''}. Editing the data keeps the converted values; switching back before editing restores the originals.`);
+  renderAll();
+}
+
+/* ================= learning ================= */
+function learn(){
+  const m=S.model,d=S.features.length;
+  const info={errs:[],inc:new Set()};
+  if(!d)return{ok:false,msg:'Add at least one feature.',info};
+  const cmap=new Map(),names=[],recs=[];
+  S.rows.forEach((r,i)=>{
+    const xs=[];let empty=false,invalid=false;
+    S.features.forEach(f=>{
+      const raw=String(r.v[f.id]==null?'':r.v[f.id]).trim();
+      if(raw===''){empty=true;xs.push(null);return;}
+      const x=Number(raw);
+      let ok=Number.isFinite(x);
+      if(ok&&m==='mult')ok=Number.isInteger(x)&&x>=0;
+      if(ok&&m==='bern')ok=(x===0||x===1);
+      if(!ok){invalid=true;info.errs.push({r:i,k:f.id});xs.push(null);return;}
+      xs.push(x);
+    });
+    const cls=String(r.v.t==null?'':r.v.t).trim();
+    if(cls==='')empty=true;
+    const rw=String(r.v.w==null?'':r.v.w).trim();
+    let w=1;
+    if(rw!==''){w=Number(rw);if(!Number.isInteger(w)||w<1){invalid=true;info.errs.push({r:i,k:'w'});}}
+    if(empty||invalid){info.inc.add(i);return;}
+    const key=cls.toLowerCase();
+    if(!cmap.has(key)){cmap.set(key,names.length);names.push(cls);}
+    recs.push({xs,c:cmap.get(key),w});
+  });
+  info.used=recs.length;
+  if(!recs.length)return{ok:false,msg:'Add at least one complete record (every cell filled, with a class label).',info};
+
+  const K=names.length,a=S.alpha;
+  const C=names.map(name=>({name,n:0,recs:0,cnt:new Array(d).fill(0)}));
+  const all={cnt:new Array(d).fill(0)};
+  let N=0;
+  recs.forEach(r=>{
+    const c=C[r.c];c.n+=r.w;c.recs++;N+=r.w;
+    r.xs.forEach((x,j)=>{c.cnt[j]+=r.w*x;all.cnt[j]+=r.w*x;});
+  });
+  C.forEach(c=>{c.prior=c.n/N;c.logPrior=Math.log(c.prior);});
+  let epsAbs=0;
+  if(m==='mult'){
+    const th=(cnt,tot)=>{const den=tot+a*d;return cnt.map(v=>den>0?(v+a)/den:0);};
+    C.forEach(c=>{c.tot=c.cnt.reduce((s,v)=>s+v,0);c.p=th(c.cnt,c.tot);});
+    all.tot=all.cnt.reduce((s,v)=>s+v,0);all.p=th(all.cnt,all.tot);
+  }else if(m==='bern'){
+    C.forEach(c=>{c.p=c.cnt.map(v=>(v+a)/(c.n+2*a));});
+    all.p=all.cnt.map(v=>(v+a)/(N+2*a));
+  }else{
+    C.forEach(c=>{c.mu=c.cnt.map(s=>s/c.n);c.rv=new Array(d).fill(0);});
+    all.mu=all.cnt.map(s=>s/N);all.rv=new Array(d).fill(0);
+    recs.forEach(r=>r.xs.forEach((x,j)=>{
+      const c=C[r.c];
+      c.rv[j]+=r.w*(x-c.mu[j])**2;all.rv[j]+=r.w*(x-all.mu[j])**2;
+    }));
+    C.forEach(c=>{c.rv=c.rv.map(s=>s/c.n);});
+    all.rv=all.rv.map(s=>s/N);
+    epsAbs=S.eps*Math.max(0,...all.rv);
+    C.forEach(c=>{c.v=c.rv.map(v=>Math.max(v+epsAbs,1e-12));});
+  }
+  const issues=[];
+  C.forEach(c=>{
+    S.features.forEach((f,j)=>{
+      if(m==='mult'&&c.cnt[j]===0)issues.push({c:c.name,f:f.name,kind:'never occurs'});
+      else if(m==='bern'&&c.cnt[j]===0)issues.push({c:c.name,f:f.name,kind:'is never 1'});
+      else if(m==='bern'&&c.cnt[j]===c.n)issues.push({c:c.name,f:f.name,kind:'is always 1'});
+      else if(m==='gauss'&&c.rv[j]<1e-12)issues.push({c:c.name,f:`${f.name} (= ${fs(c.mu[j])})`,kind:'is constant'});
+    });
+  });
+  return{ok:true,m,d,N,K,C,all,issues,cells:K*d,epsAbs,info};
+}
+
+/* ================= prediction ================= */
+function predict(M,xs){
+  const res=M.C.map(c=>{
+    const parts=[];let L=c.logPrior;
+    S.features.forEach((f,j)=>{
+      const x=xs[j];let p,lp;
+      if(M.m==='mult'){p=c.p[j];lp=x===0?0:(p>0?x*Math.log(p):-Infinity);}
+      else if(M.m==='bern'){p=x===1?c.p[j]:1-c.p[j];lp=p>0?Math.log(p):-Infinity;}
+      else{
+        const v=c.v[j],z=(x-c.mu[j])**2/(2*v);
+        p=Math.exp(-z)/Math.sqrt(2*Math.PI*v);lp=-0.5*Math.log(2*Math.PI*v)-z;
+      }
+      parts.push({j,x,p,lp});L+=lp;
+    });
+    return{c,parts,L,score:Math.exp(L)};
+  });
+  const mx=Math.max(...res.map(r=>r.L));
+  let undef=!(mx>-Infinity),z=0,logEv=-Infinity;
+  if(!undef){
+    res.forEach(r=>{r.e=Math.exp(r.L-mx);z+=r.e;});
+    res.forEach(r=>{r.post=r.e/z;});
+    logEv=mx+Math.log(z);
+  }else res.forEach(r=>{r.post=0;});
+  let best=-1;
+  if(!undef){best=0;res.forEach((r,i)=>{if(r.L>res[best].L)best=i;});}
+  return{res,mx,z,logEv,best,undef};
+}
+
+/* ================= rendering: statistics ================= */
+function renderStatus(){
+  const used=M.info.used||0,total=S.rows.length,inc=M.info.inc.size;
+  $('dstat').innerHTML=`${used} of ${total} record${total===1?'':'s'} used for learning`+
+    (inc?` · <span style="color:#92400e">${inc} incomplete or invalid (amber / red) — ignored until fixed</span>`:'')+
+    `. <b>Count</b> = how many identical records a row stands for.`;
+}
+
+function renderSummary(){
+  if(!M.ok){$('sumBox').innerHTML=`<div class="ph">${esc(M.msg)}</div>`;return;}
+  let h=`<div class="kv"><span class="chip">Unique classes <b>${M.K}</b></span><span class="chip">Samples N <b>${M.N}</b></span><span class="chip">Features d <b>${M.d}</b></span></div>`;
+  h+='<table class="ct"><thead><tr><th>Class</th><th>Samples n<sub>C</sub></th><th style="width:55%">Prior P(C) = n<sub>C</sub> / N</th></tr></thead><tbody>';
+  M.C.forEach((c,i)=>{
+    h+=`<tr><td><i class="dot" style="background:${col(i)}"></i>${esc(c.name)}</td><td>${c.n}</td><td><div class="pbar"><i style="width:${c.prior*100}%;background:${col(i)}"></i></div><b>${c.prior.toFixed(4)}</b> <small style="display:inline">&nbsp;${c.n} / ${M.N}</small></td></tr>`;
+  });
+  $('sumBox').innerHTML=h+'</tbody></table>';
+}
+
+function renderCond(){
+  const box=$('condBox');
+  if(!M.ok){box.innerHTML=`<div class="ph">${esc(M.msg)}</div>`;return;}
+  const a=S.alpha;
+  const formula={
+    mult:`P(feature | C) = (count<sub>feature,C</sub> + α) / (N<sub>C</sub> + α·d)<br>α = ${fs(a)}, d = ${M.d}, N<sub>C</sub> = total of all feature counts in class C`,
+    bern:`P(feature = 1 | C) = (count of 1s + α) / (n<sub>C</sub> + 2α)  ·  P(feature = 0 | C) = 1 − P(feature = 1 | C)<br>α = ${fs(a)}`,
+    gauss:`Each feature in each class: mean μ and variance σ²  ·  P(x | C) = exp(−(x−μ)² / 2σ²) / √(2πσ²)<br>σ² includes variance smoothing ε·max variance = ${fs(M.epsAbs)}`
+  }[M.m];
+  let h=`<div class="formula">${formula}</div><div class="scrollbox"><table class="ct"><thead><tr><th>Feature</th>`;
+  M.C.forEach((c,i)=>{h+=`<th><i class="dot" style="background:${col(i)}"></i>${esc(c.name)}</th>`;});
+  h+='<th>All classes</th></tr></thead><tbody>';
+  if(M.m==='mult')h+=`<tr class="tot"><td>Total count N<sub>C</sub></td>${M.C.map(c=>`<td>${fs(c.tot)}</td>`).join('')}<td>${fs(M.all.tot)}</td></tr>`;
+  if(M.m==='bern')h+=`<tr class="tot"><td>Samples n<sub>C</sub></td>${M.C.map(c=>`<td>${c.n}</td>`).join('')}<td>${M.N}</td></tr>`;
+  S.features.forEach((f,j)=>{
+    h+=`<tr><td class="f">${esc(f.name)}</td>`;
+    M.C.forEach(c=>{
+      if(M.m==='mult')h+=`<td><b>${fp(c.p[j])}</b><small>count ${fs(c.cnt[j])}</small></td>`;
+      else if(M.m==='bern')h+=`<td><b>${fp(c.p[j])}</b><small>${fs(c.cnt[j])}/${c.n} · P(0) = ${fp(1-c.p[j])}</small></td>`;
+      else h+=`<td><b>μ ${fs(c.mu[j])}</b><small>σ² ${fs(c.v[j])}</small></td>`;
+    });
+    if(M.m==='mult')h+=`<td><b>${fp(M.all.p[j])}</b><small>count ${fs(M.all.cnt[j])}</small></td>`;
+    else if(M.m==='bern')h+=`<td><b>${fp(M.all.p[j])}</b><small>${fs(M.all.cnt[j])}/${M.N}</small></td>`;
+    else h+=`<td><b>μ ${fs(M.all.mu[j])}</b><small>σ² ${fs(M.all.rv[j])}</small></td>`;
+    h+='</tr>';
+  });
+  box.innerHTML=h+'</tbody></table></div>';
+}
+
+function renderSmooth(){
+  const box=$('smInfo');
+  if(!M.ok){box.innerHTML=`<span class="muted">${esc(M.msg)}</span>`;return;}
+  const req=M.issues.length>0,gauss=M.m==='gauss';
+  let h=`<div><span class="pill ${req?'warn':'yes'}">${req?'Smoothing required':'Not required'}</span>`;
+  if(gauss){
+    h+=req?`${M.issues.length} of ${M.cells} class–feature variances are exactly 0.`:'Every class–feature variance is above 0.';
+  }else{
+    h+=req?`${M.issues.length} of ${M.cells} class–feature estimates ${M.m==='mult'?'are exactly 0':'are exactly 0 or 1'}.`:`No class–feature estimate is exactly 0${M.m==='bern'?' or 1':''}.`;
+  }
+  h+='</div>';
+  if(req){
+    const groups=new Map();
+    M.issues.forEach(i=>{const k=i.c+'\u0000'+i.kind;if(!groups.has(k))groups.set(k,{c:i.c,kind:i.kind,fs:[]});groups.get(k).fs.push(i.f);});
+    h+='<div class="issues">'+[...groups.values()].map(g=>
+      `<div class="grp"><b>${esc(g.c)}</b> · ${esc(g.kind)}: ${g.fs.map(f=>`<span>${esc(f)}</span>`).join('')}</div>`).join('')+'</div>';
+    h+=`<p class="hint" style="margin-top:8px">${gauss
+      ?'A zero variance makes the bell curve infinitely narrow, so any value that differs from the class mean gets a density of 0 (and the density at the mean explodes). Variance smoothing adds a small ε·(largest feature variance) to every variance.'
+      :(M.m==='mult'
+        ?'With a zero count, P(feature | class) = 0, so any new sample containing that feature gets a score of 0 for that class (log score −∞) however strong the other evidence is — the zero-frequency problem. Additive smoothing adds α to every count.'
+        :'With P(feature = 1 | class) equal to 0 or 1, one of the two outcomes gets probability 0, so a sample showing it can never be that class (log score −∞). Additive smoothing adds α to every count.')}</p>`;
+  }else{
+    h+=`<p class="hint" style="margin-top:8px">${gauss?'The variance is already positive everywhere. A tiny ε only keeps the arithmetic safe.':'Every estimate is already non-zero, so the model works without smoothing. A positive α is optional: it just pulls small-count estimates toward a uniform guess.'}</p>`;
+  }
+  const none=gauss?!(S.eps>0):!(S.alpha>0);
+  if(req&&none)h+=`<div class="alert"><b>${gauss?'ε = 0':'α = 0'}:</b> smoothing is required but switched off, so some probabilities stay exactly 0.</div>`;
+  else if(!none)h+=`<p class="hint">Currently applied: ${gauss?`ε = ${fs(S.eps)}`:`α = ${fs(S.alpha)}${S.alpha===1?' (Laplace)':''}`}.</p>`;
+  else h+=`<p class="hint">Currently no smoothing is applied.</p>`;
+  box.innerHTML=h;
+}
+
+/* ================= rendering: prediction ================= */
+function readSample(){
+  const xs=[],bad=[];
+  S.features.forEach(f=>{
+    const raw=String(S.input[f.id]==null?'':S.input[f.id]).trim();
+    const x=Number(raw);
+    let ok=raw!==''&&Number.isFinite(x);
+    if(ok&&S.model==='mult')ok=Number.isInteger(x)&&x>=0;
+    if(ok&&S.model==='bern')ok=(x===0||x===1);
+    if(!ok){bad.push(f.name);xs.push(null);}else xs.push(x);
+  });
+  return{xs,bad};
+}
+
+function renderPredict(){
+  const out=$('pOut'),calc=$('pCalc');
+  if(!M.ok){out.innerHTML=`<div class="ph">${esc(M.msg)}</div>`;calc.innerHTML='';return;}
+  const {xs,bad}=readSample();
+  if(bad.length){
+    out.innerHTML=`<div class="warnline">Fill in a valid ${MODELS[S.model].badge.toLowerCase()} value for: <b>${bad.slice(0,8).map(esc).join(', ')}</b>${bad.length>8?` and ${bad.length-8} more`:''}.</div>`;
+    calc.innerHTML='';return;
+  }
+  const P=predict(M,xs);
+  let h='';
+  if(P.undef){
+    h+=`<div class="warnline"><b>No prediction possible.</b> Every class has probability 0 for this sample (all log scores are ${MINUS}∞), so the scores cannot be normalised. Apply smoothing (α &gt; 0) to fix it.</div>`;
+  }else{
+    const b=P.res[P.best],c=col(P.best);
+    h+=`<div class="hero" style="border-color:${c};background:${c}12"><div><div class="lab">Predicted class</div><b style="color:${c}">${esc(b.c.name)}</b></div><em>${pct(b.post)} probability</em></div>`;
+  }
+  P.res.forEach((r,i)=>{
+    h+=`<div class="pb"><span class="nm"><i class="dot" style="background:${col(i)}"></i>${esc(r.c.name)}</span><div class="bar"><i style="width:${r.post*100}%;background:${col(i)}"></i></div><span class="pc">${pct(r.post)}</span></div>`;
+  });
+  h+='<div class="steps">';
+  h+=`<div><b>1 · Log score</b> &nbsp;<code>log score(C) = log P(C) + Σ log P(xᵢ | C)</code> → ${P.res.map(r=>`${esc(r.c.name)}: <b>${fl(r.L)}</b>`).join(' · ')}</div>`;
+  if(!P.undef){
+    h+=`<div><b>2 · Normalise</b> &nbsp;<code>P(C | x) = exp(log score(C) − m) / Σ exp(log score − m)</code>, with m = max log score = ${fl(P.mx)} (log-sum-exp keeps the numbers from underflowing). Σ = ${fs(P.z)}, so log P(x) = ${fl(P.logEv)}.</div>`;
+    h+=`<div><b>3 · Predict</b> &nbsp;the class with the highest log score: <b>${esc(P.res[P.best].c.name)}</b>.</div>`;
+  }
+  h+='</div>';
+  out.innerHTML=h;
+
+  /* calculation table */
+  const hdr=P.res.map((r,i)=>`<th class="${i===P.best?'win':''}"><i class="dot" style="background:${col(i)}"></i>${esc(r.c.name)}</th>`).join('');
+  let t=`<table><thead><tr><th>Term</th>${hdr}</tr></thead><tbody>`;
+  const cell=(r,i,p,lp)=>`<td class="${i===P.best?'win':''}">${fp(p)}<small>log ${fl(lp)}</small></td>`;
+  t+=`<tr><td class="t">Prior P(C)</td>${P.res.map((r,i)=>cell(r,i,r.c.prior,r.c.logPrior)).join('')}</tr>`;
+  const shown=S.features.map((f,j)=>j).filter(j=>S.model!=='mult'||xs[j]>0);
+  shown.forEach(j=>{
+    const f=S.features[j];
+    const label=S.model==='mult'?`P(${esc(f.name)} | C)<small>count ${xs[j]} → log θ × ${xs[j]}</small>`
+      :S.model==='bern'?`P(${esc(f.name)} = ${xs[j]} | C)`
+      :`P(${esc(f.name)} = ${fs(xs[j])} | C)<small>normal density</small>`;
+    t+=`<tr><td class="t">${label}</td>${P.res.map((r,i)=>cell(r,i,r.parts[j].p,r.parts[j].lp)).join('')}</tr>`;
+  });
+  if(S.model==='mult'&&!shown.length)t+=`<tr><td colspan="${P.res.length+1}" class="muted">All counts are 0, so only the prior contributes.</td></tr>`;
+  t+=`<tr class="sum"><td class="t">Log score = Σ</td>${P.res.map((r,i)=>`<td class="${i===P.best?'win':''}">${fl(r.L)}</td>`).join('')}</tr>`;
+  t+=`<tr><td class="t">Score = e<sup>log score</sup><small>not a probability — does not sum to 1</small></td>${P.res.map((r,i)=>`<td class="${i===P.best?'win':''}">${fp(r.score)}</td>`).join('')}</tr>`;
+  t+=`<tr class="sum2"><td class="t">Posterior P(C | x)<small>normalised</small></td>${P.res.map((r,i)=>`<td class="${i===P.best?'win':''}">${pct(r.post)}</td>`).join('')}</tr>`;
+  calc.innerHTML=t+'</tbody></table>'+(S.model==='gauss'?'<p class="hint">For Gaussian features P(x | C) is a probability density, so it can be larger than 1.</p>':'');
+}
+
+/* ================= update cycle ================= */
+function paintFlags(){
+  document.querySelectorAll('#tbl .bad').forEach(e=>e.classList.remove('bad'));
+  document.querySelectorAll('#tbl tr.inc').forEach(e=>e.classList.remove('inc'));
+  (M.info.inc||[]).forEach(i=>{const tr=document.querySelector(`#tbl tr[data-r="${i}"]`);if(tr)tr.classList.add('inc');});
+  (M.info.errs||[]).forEach(e=>{const el=document.querySelector(`#tbl [data-r="${e.r}"][data-k="${e.k}"]`);if(el)el.classList.add('bad');});
+}
+function update(){
+  M=learn();
+  paintFlags();renderStatus();renderSummary();renderCond();renderSmooth();renderPredict();
+}
+let raf=0;
+const sched=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;update();});};
+
+/* ================= events ================= */
+$('modelSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(b)switchModel(b.dataset.m);});
+$('preset').onchange=e=>{const k=e.target.value;e.target.value='';if(k)loadPreset(k);};
+
+function nameClash(name,exceptId){
+  const n=name.trim().toLowerCase();
+  return S.features.some(f=>f.id!==exceptId&&f.name.trim().toLowerCase()===n);
+}
+function addFeature(){
+  const inp=$('fName'),name=inp.value.trim();
+  if(!name){say('err','Give the new feature a name first.');inp.focus();return;}
+  if(nameClash(name)){say('err',`“${esc(name)}” is already a feature.`);inp.focus();return;}
+  const f={id:'f'+(++fid),name};
+  S.features.push(f);S.origin=null;
+  S.rows.forEach(r=>{r.v[f.id]=defaultCell();});
+  S.input[f.id]=defaultCell()||'0';
+  inp.value='';say('');
+  renderFeatures();renderTable();renderInputs();update();inp.focus();
+}
+$('bAddF').onclick=addFeature;
+$('fName').addEventListener('keydown',e=>{if(e.key==='Enter')addFeature();});
+
+$('fList').addEventListener('input',e=>{if(e.target.classList.contains('fn'))e.target.style.width=Math.max(4,e.target.value.length+1)+'ch';});
+$('fList').addEventListener('change',e=>{
+  if(!e.target.classList.contains('fn'))return;
+  const f=S.features.find(x=>x.id===e.target.closest('.fchip').dataset.f);if(!f)return;
+  const name=e.target.value.trim();
+  if(!name||nameClash(name,f.id)){say('err',!name?'A feature needs a name.':`“${esc(name)}” is already a feature.`);e.target.value=f.name;return;}
+  f.name=name;S.origin=null;say('');renderTable();renderInputs();update();
+});
+$('fList').addEventListener('click',e=>{
+  if(!e.target.closest('.x'))return;
+  const id=e.target.closest('.fchip').dataset.f;
+  S.features=S.features.filter(f=>f.id!==id);
+  S.rows.forEach(r=>{delete r.v[id];});delete S.input[id];S.origin=null;say('');
+  renderFeatures();renderTable();renderInputs();update();
+});
+
+$('tName').addEventListener('change',e=>{S.target=e.target.value.trim()||'Class';e.target.value=S.target;S.origin=null;renderTable();update();});
+
+$('bAddR').onclick=()=>{
+  if(S.rows.length>=500){say('err','This simulator holds up to 500 rows.');return;}
+  const v={t:'',w:'1'};S.features.forEach(f=>{v[f.id]=defaultCell();});
+  S.rows.push({v});S.origin=null;say('');
+  renderTable();update();
+  const w=document.querySelector('.tablewrap');w.scrollTop=w.scrollHeight;
+  const first=document.querySelector(`#tbl tr[data-r="${S.rows.length-1}"] td.s1 input`);if(first)first.focus();
+};
+$('bClearR').onclick=()=>{S.rows=[];S.origin=null;say('');renderTable();update();};
+
+const tbl=$('tbl');
+tbl.addEventListener('input',e=>{
+  const el=e.target;if(!el.dataset||el.dataset.r==null)return;
+  S.rows[+el.dataset.r].v[el.dataset.k]=el.value;S.origin=null;sched();
+});
+tbl.addEventListener('change',e=>{if(e.target.dataset&&e.target.dataset.k==='t')updateDatalist();});
+tbl.addEventListener('click',e=>{
+  if(!e.target.closest('.rdel'))return;
+  const r=+e.target.closest('tr').dataset.r;
+  S.rows.splice(r,1);S.origin=null;say('');renderTable();update();
+});
+
+$('inputs').addEventListener('input',e=>{
+  const el=e.target;if(!el.dataset||!el.dataset.f)return;
+  S.input[el.dataset.f]=el.value;renderPredict();
+});
+function applyText(){
+  const txt=$('txt').value,cnt={};
+  tok(txt).forEach(t=>{cnt[t]=(cnt[t]||0)+1;});
+  const ids=new Map(S.features.map(f=>[f.name.trim().toLowerCase(),f.id]));
+  S.features.forEach(f=>{S.input[f.id]='0';});
+  const unknown=[];
+  Object.keys(cnt).forEach(t=>{
+    const id=ids.get(t);
+    if(id)S.input[id]=String(S.model==='bern'?1:cnt[t]);else unknown.push(t);
+  });
+  $('txtNote').textContent=unknown.length?`Not in the vocabulary (ignored): ${unknown.join(', ')}`:(txt.trim()?'All words found in the vocabulary.':'');
+  renderInputs();renderPredict();
+}
+$('bText').onclick=applyText;
+$('txt').addEventListener('keydown',e=>{if(e.key==='Enter')applyText();});
+$('bReset').onclick=()=>{
+  S.features.forEach((f,j)=>{S.input[f.id]=S.model==='gauss'&&M.ok?fs(M.all.mu[j]):'0';});
+  $('txt').value='';$('txtNote').textContent='';
+  renderInputs();renderPredict();
+};
+
+$('oAlpha').addEventListener('input',e=>{const v=Number(e.target.value);S.alpha=e.target.value!==''&&v>=0?v:0;update();});
+$('oEps').addEventListener('input',e=>{const v=Number(e.target.value);S.eps=e.target.value!==''&&v>=0?v:0;update();});
+$('ctlA').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.alpha=Number(b.dataset.a);$('oAlpha').value=S.alpha;update();});
+$('ctlE').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S.eps=Number(b.dataset.e);$('oEps').value=S.eps;update();});
+
+/* ================= init ================= */
+loadPreset('spam');
+window.__nb={S,learn:()=>M,predict,readSample};
+})();
+</script>
+</body>
+</html>
