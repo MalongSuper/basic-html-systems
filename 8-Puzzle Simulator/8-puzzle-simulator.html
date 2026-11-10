@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8-Puzzle Heuristic Simulator</title>
+<style>
+  :root{
+    --navy:#0b1f4b;
+    --navy-2:#1c3770;
+    --navy-3:#2d54a3;
+    --muted:#5b6784;
+    --line:#dfe4ee;
+    --soft:#f5f7fb;
+    --hl:#e3ebff;
+    --good:#1a7f4b;
+    --bad:#b3261e;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:#fff;color:var(--navy);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.45;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 48px}
+  h1{font-size:1.55rem;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 26px;font-size:.95rem;max-width:62ch}
+  h2{font-size:1.05rem;margin:0 0 4px}
+
+  .layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:36px;align-items:start}
+  @media (max-width:860px){.layout{grid-template-columns:1fr;gap:28px}}
+
+  /* ---------- Heuristic table ---------- */
+  .cap{color:var(--muted);font-size:.88rem;margin:0 0 12px;min-height:2.6em}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{padding:10px 10px;text-align:center;border-bottom:1px solid var(--line)}
+  th{font-size:.9rem;font-weight:700;border-bottom:2px solid var(--navy);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  td.val{font-size:1.15rem;font-weight:700}
+  td.val .delta{display:block;font-size:.7rem;font-weight:600;line-height:1}
+  .delta.down{color:var(--good)} .delta.up{color:var(--bad)}
+  tr.current td{background:var(--soft)}
+  tr.chosen td{background:var(--hl)}
+  tr.chosen td:first-child{box-shadow:inset 4px 0 0 var(--navy)}
+  .statecell{display:flex;align-items:center;gap:10px}
+  .badge{
+    width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex:none
+  }
+  .badge.cur{background:#fff;color:var(--navy);border:2px solid var(--navy);font-size:.62rem;letter-spacing:.02em}
+  .mini{
+    display:grid;grid-template-columns:repeat(3,17px);gap:1px;background:var(--navy);
+    padding:2px;border-radius:5px;flex:none
+  }
+  .mini span{
+    width:17px;height:17px;background:var(--navy-2);color:#fff;font-size:10px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;border-radius:2px
+  }
+  .mini span.blank{background:var(--navy)}
+  .mini span.moved{background:#fff;color:var(--navy)}
+  .dir{font-size:.78rem;color:var(--muted);white-space:nowrap}
+  .legend{margin:16px 0 0;padding:0;list-style:none;font-size:.84rem;color:var(--muted);display:grid;gap:4px}
+  .legend b{color:var(--navy)}
+
+  /* ---------- Board ---------- */
+  .boardcol{display:flex;flex-direction:column;align-items:center;gap:16px}
+  .board{
+    --move:.25s;
+    width:100%;max-width:380px;aspect-ratio:1/1;background:var(--navy);
+    border-radius:16px;padding:8px;box-shadow:0 10px 28px rgba(11,31,75,.22)
+  }
+  .inner{position:relative;width:100%;height:100%}
+  .tile{
+    position:absolute;left:0;top:0;width:33.3333%;height:33.3333%;padding:4px;
+    transition:transform var(--move) ease;cursor:default
+  }
+  .tile>div{
+    position:relative;width:100%;height:100%;background:var(--navy-2);color:#fff;border-radius:11px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:clamp(1.7rem,7vw,2.6rem);font-weight:700;user-select:none;
+    transition:background .2s, box-shadow .2s
+  }
+  .tile.correct>div{background:var(--navy-3);box-shadow:inset 0 0 0 2px rgba(255,255,255,.55)}
+  .tile.movable{cursor:pointer}
+  .tile.movable:hover>div{background:var(--navy-3)}
+  .tile .dist{
+    position:absolute;top:5px;right:8px;font-size:.72rem;font-weight:600;opacity:.8;display:none
+  }
+  .board.show-dist .tile .dist{display:block}
+
+  .stats{display:flex;gap:10px;width:100%;max-width:380px}
+  .stat{flex:1;border:1px solid var(--line);border-radius:10px;padding:8px 10px;text-align:center}
+  .stat b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
+  .stat span{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+
+  .controls{display:flex;gap:10px;width:100%;max-width:380px}
+  button{
+    font:inherit;font-weight:600;border-radius:10px;padding:11px 16px;cursor:pointer;
+    border:2px solid var(--navy);background:#fff;color:var(--navy);flex:1
+  }
+  button.primary{background:var(--navy);color:#fff;flex:1.6}
+  button:hover:not(:disabled){filter:brightness(1.15)}
+  button.primary:hover:not(:disabled){filter:brightness(1.3)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--navy-3);outline-offset:2px}
+
+  .options{display:grid;gap:10px;width:100%;max-width:380px;font-size:.88rem}
+  .options label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  select{font:inherit;padding:6px 8px;border:1px solid var(--navy);border-radius:8px;color:var(--navy);background:#fff}
+  input[type=range]{accent-color:var(--navy);width:150px}
+  input[type=checkbox]{accent-color:var(--navy);width:16px;height:16px}
+  .status{margin:0;min-height:1.4em;font-size:.9rem;color:var(--muted);text-align:center;max-width:380px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>8-Puzzle Heuristic Simulator</h1>
+  <p class="sub">An A* agent solves the puzzle while the table shows how each heuristic scores every legal move from the current board.</p>
+
+  <div class="layout">
+    <!-- LEFT: heuristic table -->
+    <section>
+      <h2>Heuristic values</h2>
+      <p class="cap" id="cap"></p>
+      <table id="htable" aria-label="Heuristic values for the current state and its successors">
+        <thead>
+          <tr>
+            <th>State</th>
+            <th>h<sub>1</sub>(n)</th>
+            <th>h<sub>2</sub>(n)</th>
+            <th>max(h<sub>1</sub>, h<sub>2</sub>)</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <ul class="legend">
+        <li><b>h<sub>1</sub></b> = number of misplaced tiles (blank excluded).</li>
+        <li><b>h<sub>2</sub></b> = Manhattan distance: sum of each tile's row + column distance from its goal square.</li>
+        <li><b>max(h<sub>1</sub>, h<sub>2</sub>)</b> = still admissible, and never worse than either. Since h<sub>2</sub> ≥ h<sub>1</sub> for every state, it always equals h<sub>2</sub> here.</li>
+        <li>▼ / ▲ show the change relative to the current board.</li>
+      </ul>
+    </section>
+
+    <!-- RIGHT: board -->
+    <section class="boardcol">
+      <div class="board" id="board" aria-label="8-puzzle board"><div class="inner" id="inner"></div></div>
+
+      <div class="stats">
+        <div class="stat"><b id="sMoves">0</b><span>Moves</span></div>
+        <div class="stat"><b id="sOpt">–</b><span>Optimal</span></div>
+        <div class="stat"><b id="sExp">–</b><span>Expanded</span></div>
+      </div>
+
+      <div class="controls">
+        <button id="runBtn" class="primary">▶ Run</button>
+        <button id="resetBtn">Reset</button>
+        <button id="shuffleBtn">Shuffle</button>
+      </div>
+
+      <div class="options">
+        <label>AI heuristic
+          <select id="hSelect">
+            <option value="max" selected>max(h₁, h₂)</option>
+            <option value="h2">h₂ Manhattan</option>
+            <option value="h1">h₁ Misplaced</option>
+          </select>
+        </label>
+        <label>Speed <input type="range" id="speed" min="1" max="10" value="6"></label>
+        <label>Show tile distances (h₂) <input type="checkbox" id="showDist"></label>
+      </div>
+      <p class="status" id="status" aria-live="polite"></p>
+    </section>
+  </div>
+</div>
+
+<script>
+// ==== LOGIC START ====
+const GOAL  = [1,2,3,4,5,6,7,8,0];
+const START = [8,6,4,2,1,3,5,7,0];
+
+const H = {
+  // misplaced tiles (blank not counted)
+  h1(s){ let c = 0; for (let i = 0; i < 9; i++) if (s[i] !== 0 && s[i] !== GOAL[i]) c++; return c; },
+  // Manhattan distance (goal square of tile v is index v-1)
+  h2(s){
+    let d = 0;
+    for (let i = 0; i < 9; i++){
+      const v = s[i]; if (!v) continue;
+      const g = v - 1;
+      d += Math.abs(Math.floor(i/3) - Math.floor(g/3)) + Math.abs(i%3 - g%3);
+    }
+    return d;
+  },
+  max(s){ return Math.max(H.h1(s), H.h2(s)); }
+};
+
+const isGoal = s => s.every((v,i) => v === GOAL[i]);
+const keyOf  = s => s.join('');
+
+function solvable(s){
+  const a = s.filter(v => v !== 0); let inv = 0;
+  for (let i = 0; i < a.length; i++) for (let j = i+1; j < a.length; j++) if (a[i] > a[j]) inv++;
+  return inv % 2 === 0;
+}
+
+// Legal moves from a state. (mr, mc) is the direction the *tile* slides.
+const DIRS = [ {dr:-1,dc:0}, {dr:1,dc:0}, {dr:0,dc:-1}, {dr:0,dc:1} ]; // blank up, down, left, right
+function arrow(mr, mc){ return mr === 1 ? '↓' : mr === -1 ? '↑' : mc === 1 ? '→' : '←'; }
+function successors(s){
+  const z = s.indexOf(0), r = Math.floor(z/3), c = z % 3, out = [];
+  for (const d of DIRS){
+    const nr = r + d.dr, nc = c + d.dc;
+    if (nr < 0 || nr > 2 || nc < 0 || nc > 2) continue;
+    const t = nr*3 + nc, n = s.slice();
+    n[z] = n[t]; n[t] = 0;
+    out.push({ state:n, tile:s[t], arrow:arrow(-d.dr, -d.dc) });
+  }
+  return out;
+}
+
+class MinHeap{
+  constructor(cmp){ this.a = []; this.cmp = cmp; }
+  get size(){ return this.a.length; }
+  push(x){
+    const a = this.a; a.push(x); let i = a.length - 1;
+    while (i > 0){
+      const p = (i-1) >> 1;
+      if (this.cmp(a[i], a[p]) < 0){ [a[i], a[p]] = [a[p], a[i]]; i = p; } else break;
+    }
+  }
+  pop(){
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length){
+      a[0] = last; let i = 0;
+      for (;;){
+        const l = 2*i+1, r = l+1; let m = i;
+        if (l < a.length && this.cmp(a[l], a[m]) < 0) m = l;
+        if (r < a.length && this.cmp(a[r], a[m]) < 0) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]]; i = m;
+      }
+    }
+    return top;
+  }
+}
+
+// A*: f(n) = g(n) + h(n). Returns { path:[states], expanded } or null.
+function aStar(start, hfn){
+  const goalKey = keyOf(GOAL);
+  const heap = new MinHeap((a,b) => a.f - b.f || a.h - b.h || b.g - a.g);
+  const gBest = new Map(), parent = new Map(), closed = new Set();
+  const sk = keyOf(start), h0 = hfn(start);
+  gBest.set(sk, 0); parent.set(sk, null);
+  heap.push({ s:start, k:sk, g:0, h:h0, f:h0 });
+  let expanded = 0;
+  while (heap.size){
+    const n = heap.pop();
+    if (closed.has(n.k)) continue;
+    if (n.k === goalKey){
+      const path = [n.s]; let p = parent.get(n.k);
+      while (p){ path.push(p.s); p = parent.get(p.k); }
+      path.reverse();
+      return { path, expanded };
+    }
+    closed.add(n.k); expanded++;
+    for (const m of successors(n.s)){
+      const mk = keyOf(m.state);
+      if (closed.has(mk)) continue;
+      const g = n.g + 1;
+      if (g < (gBest.get(mk) ?? Infinity)){
+        gBest.set(mk, g); parent.set(mk, { k:n.k, s:n.s });
+        const h = hfn(m.state);
+        heap.push({ s:m.state, k:mk, g, h, f:g+h });
+      }
+    }
+  }
+  return null;
+}
+
+function randomSolvable(){
+  let a;
+  do {
+    a = GOAL.slice();
+    for (let i = 8; i > 0; i--){
+      const j = Math.floor(Math.random() * (i+1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+  } while (!solvable(a) || isGoal(a) || H.h2(a) < 8);
+  return a;
+}
+// ==== LOGIC END ====
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+const boardEl = $('board'), inner = $('inner'), tbody = $('tbody');
+const runBtn = $('runBtn'), resetBtn = $('resetBtn'), shuffleBtn = $('shuffleBtn');
+const hSelect = $('hSelect'), speed = $('speed'), showDist = $('showDist');
+
+let startState = START.slice();
+let state = START.slice();
+let path = null, pathIdx = 0;
+let running = false, solving = false, timer = null;
+let moves = 0, optimal = null, expanded = null;
+
+const LETTERS = ['A','B','C','D'];
+const delay = () => 1800 - (Number(speed.value) - 1) * 180;
+const applySpeed = () => boardEl.style.setProperty('--move', Math.min(delay() * 0.7, 320) + 'ms');
+
+// build tiles once
+const tiles = {};
+for (let v = 1; v <= 8; v++){
+  const t = document.createElement('div');
+  t.className = 'tile';
+  t.innerHTML = `<div>${v}<span class="dist"></span></div>`;
+  t.addEventListener('click', () => onTileClick(v));
+  inner.appendChild(t);
+  tiles[v] = t;
+}
+
+function updateBoard(){
+  for (let v = 1; v <= 8; v++){
+    const i = state.indexOf(v), t = tiles[v];
+    t.style.transform = `translate(${(i%3)*100}%, ${Math.floor(i/3)*100}%)`;
+    t.classList.toggle('correct', GOAL[i] === v);
+    const g = v - 1;
+    const d = Math.abs(Math.floor(i/3) - Math.floor(g/3)) + Math.abs(i%3 - g%3);
+    t.querySelector('.dist').textContent = d;
+    const z = state.indexOf(0);
+    const adj = Math.abs(Math.floor(i/3) - Math.floor(z/3)) + Math.abs(i%3 - z%3) === 1;
+    t.classList.toggle('movable', adj && !running && !solving);
+  }
+  $('sMoves').textContent = moves;
+  $('sOpt').textContent = optimal ?? '–';
+  $('sExp').textContent = expanded ?? '–';
+}
+
+function miniBoard(s, moved){
+  return '<div class="mini">' + s.map(v =>
+    `<span class="${v === 0 ? 'blank' : v === moved ? 'moved' : ''}">${v === 0 ? '' : v}</span>`
+  ).join('') + '</div>';
+}
+
+function delta(cur, val){
+  const d = val - cur;
+  if (!d) return '';
+  return `<span class="delta ${d < 0 ? 'down' : 'up'}">${d < 0 ? '▼' : '▲'}${Math.abs(d)}</span>`;
+}
+
+function renderTable(chosen){
+  const cur = { h1:H.h1(state), h2:H.h2(state), mx:H.max(state) };
+  const chosenKey = chosen ? keyOf(chosen) : null;
+  let html = `
+    <tr class="current">
+      <td><div class="statecell"><span class="badge cur">NOW</span>${miniBoard(state)}<span class="dir">current</span></div></td>
+      <td class="val">${cur.h1}</td><td class="val">${cur.h2}</td><td class="val">${cur.mx}</td>
+    </tr>`;
+  successors(state).forEach((m, i) => {
+    const a = H.h1(m.state), b = H.h2(m.state), c = H.max(m.state);
+    html += `
+    <tr class="${chosenKey === keyOf(m.state) ? 'chosen' : ''}">
+      <td><div class="statecell"><span class="badge">${LETTERS[i]}</span>${miniBoard(m.state, m.tile)}<span class="dir">tile ${m.tile} ${m.arrow}</span></div></td>
+      <td class="val">${a}${delta(cur.h1, a)}</td>
+      <td class="val">${b}${delta(cur.h2, b)}</td>
+      <td class="val">${c}${delta(cur.mx, c)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  $('cap').textContent = chosen
+    ? 'Highlighted row = the move the AI is about to make. A* ranks nodes by f(n) = g(n) + h(n), so it can pick a move whose h is not the lowest.'
+    : 'States A–D are the legal moves from the current board. Press Run to watch A* choose among them.';
+}
+
+function setStatus(msg){ $('status').textContent = msg; }
+
+function updateButtons(){
+  runBtn.textContent = running ? '⏸ Pause' : '▶ Run';
+  runBtn.disabled = solving;
+  hSelect.disabled = running || solving;
+  shuffleBtn.disabled = solving;
+  resetBtn.disabled = solving;
+}
+
+function pause(msg){
+  clearTimeout(timer); timer = null;
+  running = false;
+  updateButtons(); updateBoard();
+  if (msg) setStatus(msg);
+}
+
+function finish(){
+  running = false; clearTimeout(timer);
+  updateButtons(); updateBoard(); renderTable(null);
+  setStatus(`Solved in ${moves} move${moves === 1 ? '' : 's'}.`);
+}
+
+function step(){
+  if (!running) return;
+  if (pathIdx >= path.length - 1){ finish(); return; }
+  const next = path[pathIdx + 1];
+  renderTable(next);
+  timer = setTimeout(() => {
+    state = next; pathIdx++; moves++;
+    updateBoard();
+    if (pathIdx >= path.length - 1) finish(); else step();
+  }, delay());
+}
+
+async function onRun(){
+  if (running){ pause('Paused. Press Run to continue.'); return; }
+  if (isGoal(state)){ setStatus('Already solved. Reset or Shuffle to try again.'); return; }
+  if (!path){
+    solving = true; updateButtons(); updateBoard();
+    setStatus('Searching with A*…');
+    await new Promise(r => setTimeout(r, 40));
+    const res = aStar(state, H[hSelect.value]);
+    solving = false;
+    if (!res){ updateButtons(); updateBoard(); setStatus('No solution found.'); return; }
+    path = res.path; pathIdx = 0;
+    optimal = path.length - 1; expanded = res.expanded;
+  }
+  running = true; updateButtons(); updateBoard();
+  setStatus('Running…');
+  step();
+}
+
+function onReset(){
+  pause();
+  state = startState.slice();
+  path = null; pathIdx = 0; moves = 0; optimal = null; expanded = null;
+  updateBoard(); renderTable(null);
+  setStatus('Puzzle reset.');
+}
+
+function onShuffle(){
+  pause();
+  startState = randomSolvable();
+  onReset();
+  setStatus('New solvable puzzle.');
+}
+
+function onTileClick(v){
+  if (running || solving) return;
+  const i = state.indexOf(v), z = state.indexOf(0);
+  const adj = Math.abs(Math.floor(i/3) - Math.floor(z/3)) + Math.abs(i%3 - z%3) === 1;
+  if (!adj) return;
+  state[z] = v; state[i] = 0;
+  path = null; optimal = null; expanded = null; moves++;
+  updateBoard(); renderTable(null);
+  setStatus(isGoal(state) ? `Solved in ${moves} moves.` : '');
+}
+
+runBtn.addEventListener('click', onRun);
+resetBtn.addEventListener('click', onReset);
+shuffleBtn.addEventListener('click', onShuffle);
+hSelect.addEventListener('change', () => { path = null; optimal = null; expanded = null; updateBoard(); });
+speed.addEventListener('input', applySpeed);
+showDist.addEventListener('change', () => boardEl.classList.toggle('show-dist', showDist.checked));
+
+applySpeed(); updateButtons(); updateBoard(); renderTable(null);
+setStatus('Press Run, click a tile to move it yourself, or Shuffle for a new puzzle.');
+</script>
+</body>
+</html>
