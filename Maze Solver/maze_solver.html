@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maze Solver</title>
+<style>
+:root{
+  --obstacle:#111111;
+  --start:#e53935;
+  --goal:#2e9b4a;
+  --visited:#9fd6f6;
+  --path:#ffd633;
+  --line:#d5d9e0;
+  --ink:#1d2433;
+  --muted:#667085;
+  --accent:#1f5fbf;
+  --bg-soft:#f5f7fa;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{-webkit-tap-highlight-color:transparent}
+
+.app{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);gap:32px;
+  max-width:1200px;margin:0 auto;padding:24px}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr;gap:20px}
+  .maze-col{order:-1}
+}
+
+/* ---------- Left panel ---------- */
+.panel h1{font-size:20px;margin:0 0 2px}
+.panel .sub{margin:0 0 14px;color:var(--muted)}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 14px;min-width:0}
+fieldset:disabled{opacity:.55}
+legend{padding:0;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  float:left;width:100%;margin-bottom:8px}
+fieldset > *:not(legend){clear:both}
+.row{display:flex;align-items:center;gap:10px;margin:8px 0}
+.row > label:first-child{min-width:78px;color:var(--muted)}
+.row input[type=range]{flex:1;min-width:0}
+.val{min-width:34px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg label{flex:1;text-align:center;padding:6px 6px;cursor:pointer;border-left:1px solid var(--line);
+  user-select:none;font-size:13px}
+.seg label:first-child{border-left:0}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){background:var(--ink);color:#fff}
+.seg label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:-2px}
+.opt{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer}
+.opt input{accent-color:var(--ink)}
+.opt small{color:var(--muted)}
+select{border:1px solid var(--line);border-radius:6px;padding:4px 8px;background:#fff;flex:1}
+select:disabled{background:var(--bg-soft);color:var(--muted)}
+.note{margin:8px 0 0;color:var(--muted);font-size:12.5px}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{background:var(--bg-soft)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+table.tf{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0 0}
+table.tf th,table.tf td{padding:4px 6px;text-align:left;border-bottom:1px solid var(--line)}
+table.tf th{font-weight:600;color:var(--muted);font-size:12px}
+table.tf td.num{font-variant-numeric:tabular-nums}
+.blocked{color:#b42318}
+.okc{color:#146c2e}
+.inspect-box{margin-top:12px;padding:10px 12px;background:var(--bg-soft);border-radius:8px}
+.inspect-box h3{margin:0 0 4px;font-size:13px}
+.inspect-box p{margin:4px 0;font-size:12.5px;color:var(--muted)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+
+/* ---------- Maze column ---------- */
+.maze-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.maze-head h2{margin:0;font-size:16px}
+.badge{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--line)}
+.badge.ok{color:#146c2e;border-color:#a6dbb4;background:#effaf2}
+.badge.bad{color:#b42318;border-color:#f3b5ae;background:#fef3f2}
+
+.board-wrap{container-type:inline-size;width:100%;max-width:720px}
+.board{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:1px;background:var(--line);
+  border:1px solid var(--line);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.cell{position:relative;aspect-ratio:1/1;min-width:0;background:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:min(calc(100cqw / var(--n) * .22), 14px);color:#7a8294;cursor:pointer;
+  font-variant-numeric:tabular-nums;overflow:hidden}
+.cell:hover{box-shadow:inset 0 0 0 2px rgba(31,95,191,.35)}
+.board.locked .cell{cursor:default}
+.cell .tag{display:none;font-weight:700;font-size:1.9em}
+.hide-pos .cell .pos{display:none}
+.hide-pos .cell.start .tag,.hide-pos .cell.goal .tag{display:block}
+
+/* order matters: later rules win */
+.cell.visited{background:var(--visited);color:#42607a}
+.cell.path{background:var(--path);color:#6b5600}
+.cell.head{box-shadow:inset 0 0 0 3px #2a7fc0}
+.cell.wall{background:var(--obstacle);color:#8a8f9b}
+.cell.start{background:var(--start);color:#fff}
+.cell.goal{background:var(--goal);color:#fff}
+
+/* transition inspector marks */
+.cell.sel{outline:3px solid #7c3aed;outline-offset:-3px;z-index:2}
+.cell.nb-ok{outline:2px dashed var(--accent);outline-offset:-3px;z-index:1}
+.cell.nb-bad{outline:2px dashed #e11d48;outline-offset:-3px;z-index:1}
+.cell[data-act]::after{content:attr(data-act);position:absolute;top:2px;right:2px;font-size:11px;font-weight:700;
+  line-height:1;background:#fff;color:var(--accent);border:1px solid currentColor;border-radius:4px;padding:1px 3px}
+.cell.nb-bad[data-act]::after{color:#e11d48}
+
+.actions{display:flex;gap:10px;margin:14px 0 10px;align-items:center;flex-wrap:wrap}
+.primary{background:var(--ink);color:#fff;border:1px solid var(--ink);border-radius:8px;padding:10px 26px;
+  font-weight:600;font-size:15px;cursor:pointer}
+.primary:hover{background:#2a3348}
+.primary:disabled{opacity:.5;cursor:default}
+.primary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.msg{max-width:720px;padding:9px 12px;border-radius:8px;background:var(--bg-soft);color:var(--ink);
+  border:1px solid var(--line)}
+.msg.ok{background:#effaf2;border-color:#a6dbb4;color:#146c2e}
+.msg.warn{background:#fef3f2;border-color:#f3b5ae;color:#b42318;font-weight:600}
+
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;max-width:720px;margin:12px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:12px}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;max-width:720px;color:var(--muted);font-size:12.5px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;border:1px solid rgba(0,0,0,.2);
+  vertical-align:-2px;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= LEFT ================= -->
+  <aside class="panel">
+    <h1>Maze Solver</h1>
+    <p class="sub">Watch search algorithms find a route through a grid maze.</p>
+
+    <fieldset id="fsMaze">
+      <legend>Maze</legend>
+      <div class="seg" role="radiogroup" aria-label="Grid size">
+        <label><input type="radio" name="size" value="9" checked> 9 × 9</label>
+        <label><input type="radio" name="size" value="18"> 18 × 18</label>
+      </div>
+      <div class="row">
+        <label for="limit">Obstacles</label>
+        <input id="limit" type="range" min="0" max="79" value="20">
+        <span id="limitVal" class="val">20</span>
+      </div>
+      <div class="note" id="placedNote"></div>
+      <label class="opt"><input type="checkbox" id="guarantee"> <span>Keep randomized mazes solvable</span></label>
+      <div class="btn-row">
+        <button class="btn" id="randBtn" type="button">🎲 Randomize</button>
+        <button class="btn" id="clearBtn" type="button">Clear obstacles</button>
+      </div>
+    </fieldset>
+
+    <fieldset id="fsMode">
+      <legend>Click action</legend>
+      <div class="seg" role="radiogroup" aria-label="Click action">
+        <label title="Click a cell to add an obstacle, click an obstacle to remove it"><input type="radio" name="mode" value="obstacle" checked> Obstacle</label>
+        <label><input type="radio" name="mode" value="start"> Start</label>
+        <label><input type="radio" name="mode" value="goal"> Target</label>
+        <label title="Click a cell to see its transition function (right-click works in any mode)"><input type="radio" name="mode" value="inspect"> Inspect</label>
+      </div>
+      <p class="note" id="modeNote"></p>
+    </fieldset>
+
+    <fieldset id="fsAlgo">
+      <legend>Algorithm</legend>
+      <label class="opt"><input type="radio" name="algo" value="bfs"> Breadth-First Search <small>(BFS)</small></label>
+      <label class="opt"><input type="radio" name="algo" value="dfs"> Depth-First Search <small>(DFS)</small></label>
+      <label class="opt"><input type="radio" name="algo" value="greedy"> Greedy Best-First</label>
+      <label class="opt"><input type="radio" name="algo" value="astar" checked> A*</label>
+      <div class="row">
+        <label for="heur">Heuristic</label>
+        <select id="heur">
+          <option value="manhattan">Manhattan  |Δx|+|Δy|</option>
+          <option value="euclidean">Euclidean  √(Δx²+Δy²)</option>
+        </select>
+      </div>
+      <p class="note" id="algoNote"></p>
+    </fieldset>
+
+    <fieldset id="fsTf">
+      <legend>Transition function</legend>
+      <table class="tf" aria-label="Transition function">
+        <thead><tr><th>#</th><th>Action</th><th>Δ(x, y)</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Up</td><td class="num"><code>(0, −1)</code></td></tr>
+          <tr><td>2</td><td>Left</td><td class="num"><code>(−1, 0)</code></td></tr>
+          <tr><td>3</td><td>Down</td><td class="num"><code>(0, +1)</code></td></tr>
+          <tr><td>4</td><td>Right</td><td class="num"><code>(+1, 0)</code></td></tr>
+        </tbody>
+      </table>
+      <p class="note">Actions are tried in this order. Cells are <code>(x, y)</code> = (column, row), origin at the top-left.</p>
+      <div class="inspect-box" id="inspect" aria-live="polite"></div>
+    </fieldset>
+
+    <fieldset id="fsView" style="border-bottom:0">
+      <legend>Display</legend>
+      <label class="opt"><input type="checkbox" id="showPos" checked> <span>Show grid positions (x, y)</span></label>
+      <div class="row">
+        <label for="speed">Speed</label>
+        <input id="speed" type="range" min="1" max="10" value="5">
+        <span id="speedVal" class="val">5</span>
+      </div>
+    </fieldset>
+  </aside>
+
+  <!-- ================= RIGHT ================= -->
+  <main class="maze-col">
+    <div class="maze-head">
+      <h2 id="mazeTitle">9 × 9 maze</h2>
+      <span id="badge" class="badge"></span>
+    </div>
+
+    <div class="board-wrap">
+      <div class="board" id="board" role="grid" aria-label="Maze"></div>
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="runBtn" type="button">▶ Run</button>
+      <button class="btn" id="resetBtn" type="button">Reset search</button>
+    </div>
+
+    <div class="msg" id="msg" role="status" aria-live="polite"></div>
+
+    <div class="stats">
+      <div class="stat"><b id="stExpanded">–</b><span>Cells expanded</span></div>
+      <div class="stat"><b id="stPath">–</b><span>Path length (steps)</span></div>
+      <div class="stat"><b id="stFrontier">–</b><span>Max frontier size</span></div>
+      <div class="stat"><b id="stTime">–</b><span>Compute time</span></div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:var(--obstacle)"></i>Obstacle</span>
+      <span><i style="background:var(--start)"></i>Start</span>
+      <span><i style="background:var(--goal)"></i>Destination</span>
+      <span><i style="background:var(--visited)"></i>Searched</span>
+      <span><i style="background:var(--path)"></i>Final path</span>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ======================================================================
+ *  Model
+ * ==================================================================== */
+const DIRS = [
+  { name: 'Up',    dx:  0, dy: -1, mark: '↑' },
+  { name: 'Left',  dx: -1, dy:  0, mark: '←' },
+  { name: 'Down',  dx:  0, dy:  1, mark: '↓' },
+  { name: 'Right', dx:  1, dy:  0, mark: '→' },
+];
+const SPEEDS = [ // [delay ms, cells per tick]
+  [350,1],[200,1],[120,1],[70,1],[40,1],[20,1],[10,1],[16,2],[16,4],[16,10]
+];
+const ALGO_INFO = {
+  bfs:    { label: 'BFS',               informed: false, text: 'FIFO queue. Complete, and optimal when every step costs the same. Time O(V + E), space O(V).' },
+  dfs:    { label: 'DFS',               informed: false, text: 'LIFO stack. Complete on a finite grid (with a visited set) but not optimal: it dives deep and the first path it finds can be long.' },
+  greedy: { label: 'Greedy Best-First', informed: true,  text: 'Always expands the cell with the smallest h(n) (estimated distance to the target). Fast, but not optimal.' },
+  astar:  { label: 'A*',                informed: true,  text: 'Expands the smallest f(n) = g(n) + h(n). Both heuristics here are admissible, so the path found is optimal.' },
+};
+const MODE_NOTE = {
+  obstacle: 'Click an empty cell to add an obstacle, or an obstacle to remove it. Adding is capped by the Obstacles slider.',
+  start:    'Click any non-obstacle cell to move the start (red).',
+  goal:     'Click any non-obstacle cell to move the target (green).',
+  inspect:  'Click a cell to see its transition function. Right-click does this in any mode.',
+};
+
+const S = {
+  n: 9,
+  walls: new Uint8Array(81),
+  start: { x: 0, y: 0 },
+  goal:  { x: 8, y: 8 },
+  mode: 'obstacle',
+  algo: 'astar',
+  heur: 'manhattan',
+  selected: null,       // cell index shown in the inspector
+  running: false,
+  timer: null,
+  head: -1,
+  cells: [],
+};
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const idx = (x, y) => y * S.n + x;
+const xOf = (i) => i % S.n;
+const yOf = (i) => (i / S.n) | 0;
+const inBounds = (x, y) => x >= 0 && y >= 0 && x < S.n && y < S.n;
+const startIdx = () => idx(S.start.x, S.start.y);
+const goalIdx  = () => idx(S.goal.x, S.goal.y);
+const wallCount = () => { let c = 0; for (const v of S.walls) c += v; return c; };
+
+/** All four transitions out of (x, y), in expansion order, with their status. */
+function transitions(x, y) {
+  return DIRS.map((d) => {
+    const nx = x + d.dx, ny = y + d.dy;
+    let status = 'ok';
+    if (!inBounds(nx, ny)) status = 'out';
+    else if (S.walls[idx(nx, ny)]) status = 'wall';
+    return { d, x: nx, y: ny, status };
+  });
+}
+function successors(i) {
+  const out = [];
+  for (const t of transitions(xOf(i), yOf(i))) if (t.status === 'ok') out.push(idx(t.x, t.y));
+  return out;
+}
+function heuristic(i, kind = S.heur) {
+  const dx = Math.abs(xOf(i) - S.goal.x), dy = Math.abs(yOf(i) - S.goal.y);
+  return kind === 'manhattan' ? dx + dy : Math.hypot(dx, dy);
+}
+
+/* ======================================================================
+ *  Search algorithms
+ * ==================================================================== */
+function less(a, b) {
+  if (a.p !== b.p) return a.p < b.p;
+  if (a.t !== b.t) return a.t < b.t;
+  return a.s < b.s;
+}
+class Heap {
+  constructor() { this.a = []; }
+  get size() { return this.a.length; }
+  push(v) {
+    const a = this.a; a.push(v);
+    let i = a.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (!less(a[i], a[p])) break;
+      [a[i], a[p]] = [a[p], a[i]]; i = p;
+    }
+  }
+  pop() {
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length) {
+      a[0] = last;
+      let i = 0;
+      for (;;) {
+        const l = 2 * i + 1, r = l + 1; let m = i;
+        if (l < a.length && less(a[l], a[m])) m = l;
+        if (r < a.length && less(a[r], a[m])) m = r;
+        if (m === i) break;
+        [a[i], a[m]] = [a[m], a[i]]; i = m;
+      }
+    }
+    return top;
+  }
+}
+const round9 = (v) => Math.round(v * 1e9) / 1e9;
+
+/**
+ * Runs the selected algorithm to completion on the current maze and returns
+ * the order cells were expanded in, plus the final path (if any).
+ */
+function search(algo = S.algo, heur = S.heur) {
+  const t0 = performance.now();
+  const N = S.n * S.n, s = startIdx(), g = goalIdx();
+  const parent = new Int32Array(N).fill(-1);
+  const order = [];
+  let maxFrontier = 0, found = false;
+
+  if (algo === 'bfs') {
+    const seen = new Uint8Array(N), q = [s];
+    let head = 0; seen[s] = 1;
+    while (head < q.length) {
+      maxFrontier = Math.max(maxFrontier, q.length - head);
+      const cur = q[head++];
+      order.push(cur);
+      if (cur === g) { found = true; break; }
+      for (const nx of successors(cur)) {
+        if (seen[nx]) continue;
+        seen[nx] = 1; parent[nx] = cur; q.push(nx);
+      }
+    }
+  } else if (algo === 'dfs') {
+    const closed = new Uint8Array(N), stack = [{ i: s, from: -1 }];
+    while (stack.length) {
+      maxFrontier = Math.max(maxFrontier, stack.length);
+      const { i, from } = stack.pop();
+      if (closed[i]) continue;
+      closed[i] = 1; parent[i] = from; order.push(i);
+      if (i === g) { found = true; break; }
+      const nbs = successors(i);
+      // push in reverse so the first action in the list (Up) is explored first
+      for (let k = nbs.length - 1; k >= 0; k--) if (!closed[nbs[k]]) stack.push({ i: nbs[k], from: i });
+    }
+  } else if (algo === 'greedy') {
+    const closed = new Uint8Array(N), heap = new Heap(); let seq = 0;
+    heap.push({ i: s, from: -1, p: round9(heuristic(s, heur)), t: 0, s: seq++ });
+    while (heap.size) {
+      maxFrontier = Math.max(maxFrontier, heap.size);
+      const { i, from } = heap.pop();
+      if (closed[i]) continue;
+      closed[i] = 1; parent[i] = from; order.push(i);
+      if (i === g) { found = true; break; }
+      for (const nx of successors(i))
+        if (!closed[nx]) heap.push({ i: nx, from: i, p: round9(heuristic(nx, heur)), t: 0, s: seq++ });
+    }
+  } else { // astar
+    const closed = new Uint8Array(N), gs = new Float64Array(N).fill(Infinity), heap = new Heap(); let seq = 0;
+    gs[s] = 0;
+    heap.push({ i: s, p: round9(heuristic(s, heur)), t: heuristic(s, heur), s: seq++ });
+    while (heap.size) {
+      maxFrontier = Math.max(maxFrontier, heap.size);
+      const { i } = heap.pop();
+      if (closed[i]) continue;
+      closed[i] = 1; order.push(i);
+      if (i === g) { found = true; break; }
+      for (const nx of successors(i)) {
+        const tentative = gs[i] + 1;
+        if (tentative < gs[nx]) {
+          gs[nx] = tentative; parent[nx] = i;
+          const h = heuristic(nx, heur);
+          heap.push({ i: nx, p: round9(tentative + h), t: h, s: seq++ });
+        }
+      }
+    }
+  }
+
+  const path = [];
+  if (found) for (let c = g; c !== -1; c = parent[c]) path.push(c);
+  path.reverse();
+  return { found, order, path, maxFrontier, ms: performance.now() - t0 };
+}
+
+/** Quick reachability test used for the live "solvable?" badge. */
+function isSolvable() {
+  const N = S.n * S.n, seen = new Uint8Array(N), q = [startIdx()], g = goalIdx();
+  seen[q[0]] = 1;
+  for (let h = 0; h < q.length; h++) {
+    if (q[h] === g) return true;
+    for (const nx of successors(q[h])) if (!seen[nx]) { seen[nx] = 1; q.push(nx); }
+  }
+  return false;
+}
+
+/* ======================================================================
+ *  Rendering
+ * ==================================================================== */
+const board = $('#board');
+
+function buildBoard() {
+  board.style.setProperty('--n', S.n);
+  board.innerHTML = '';
+  S.cells = [];
+  const frag = document.createDocumentFragment();
+  for (let y = 0; y < S.n; y++) {
+    for (let x = 0; x < S.n; x++) {
+      const el = document.createElement('div');
+      el.className = 'cell';
+      el.dataset.i = idx(x, y);
+      el.setAttribute('role', 'gridcell');
+      el.innerHTML = '<span class="tag"></span><span class="pos">(' + x + ',' + y + ')</span>';
+      frag.appendChild(el);
+      S.cells.push(el);
+    }
+  }
+  board.appendChild(frag);
+  refreshAllCells();
+  $('#mazeTitle').textContent = S.n + ' × ' + S.n + ' maze';
+}
+function refreshCell(i) {
+  const el = S.cells[i], x = xOf(i), y = yOf(i);
+  const isStart = i === startIdx(), isGoal = i === goalIdx(), isWall = !!S.walls[i];
+  el.classList.toggle('wall', isWall);
+  el.classList.toggle('start', isStart);
+  el.classList.toggle('goal', isGoal);
+  el.querySelector('.tag').textContent = isStart ? 'S' : isGoal ? 'G' : '';
+  el.setAttribute('aria-label', '(' + x + ', ' + y + ')' +
+    (isStart ? ' start' : isGoal ? ' destination' : isWall ? ' obstacle' : ''));
+}
+function refreshAllCells() { for (let i = 0; i < S.cells.length; i++) refreshCell(i); }
+
+function clearVisuals() {
+  for (const el of S.cells) el.classList.remove('visited', 'path', 'head');
+  S.head = -1;
+  $('#stExpanded').textContent = '–';
+  $('#stPath').textContent = '–';
+  $('#stFrontier').textContent = '–';
+  $('#stTime').textContent = '–';
+}
+
+function setMsg(text, kind = '') {
+  const m = $('#msg');
+  m.textContent = text;
+  m.className = 'msg' + (kind ? ' ' + kind : '');
+}
+function updatePlaced() {
+  const placed = wallCount(), limit = +$('#limit').value;
+  $('#placedNote').textContent = placed + ' placed · limit ' + limit +
+    (placed >= limit ? ' (reached – raise the slider to add more)' : '');
+}
+function updateBadge() {
+  const ok = isSolvable(), b = $('#badge');
+  b.textContent = ok ? '✓ Solvable' : '✗ Unsolvable';
+  b.className = 'badge ' + (ok ? 'ok' : 'bad');
+  return ok;
+}
+function describeIdle() {
+  if (!updateBadge()) {
+    setMsg('No route exists from the start to the destination with the current obstacles. ' +
+           'You can still run the search to watch it fail, or remove obstacles.', 'warn');
+  } else {
+    setMsg('Ready. Choose an algorithm and press Run.');
+  }
+}
+function afterEdit() {
+  clearVisuals();
+  updatePlaced();
+  renderInspect();
+  describeIdle();
+}
+
+/* ---------- transition inspector ---------- */
+function renderSelection() {
+  for (const el of S.cells) {
+    el.classList.remove('sel', 'nb-ok', 'nb-bad');
+    el.removeAttribute('data-act');
+  }
+  if (S.selected == null) return;
+  S.cells[S.selected].classList.add('sel');
+  for (const t of transitions(xOf(S.selected), yOf(S.selected))) {
+    if (t.status === 'out') continue;
+    const el = S.cells[idx(t.x, t.y)];
+    el.classList.add(t.status === 'ok' ? 'nb-ok' : 'nb-bad');
+    el.dataset.act = t.d.mark;
+  }
+}
+function renderInspect() {
+  const box = $('#inspect');
+  renderSelection();
+  if (S.selected == null) {
+    box.innerHTML = '<h3>Transition at a cell</h3><p>Pick <b>Inspect</b> under “Click action” (or right-click any cell) to see where each action leads from that cell.</p>';
+    return;
+  }
+  const i = S.selected, x = xOf(i), y = yOf(i);
+  let html = '<h3>T(s, a) for s = (' + x + ', ' + y + ')</h3>';
+  const role = i === startIdx() ? 'start' : i === goalIdx() ? 'destination' : S.walls[i] ? 'obstacle' : '';
+  if (role) html += '<p>This cell is the ' + role + '.</p>';
+  if (S.walls[i]) {
+    html += '<p>Obstacles are not valid states, so there are no transitions from here.</p>';
+  } else {
+    html += '<table class="tf"><thead><tr><th>Action</th><th>Result</th></tr></thead><tbody>';
+    for (const t of transitions(x, y)) {
+      const res = t.status === 'ok'
+        ? '<span class="okc">→ (' + t.x + ', ' + t.y + ')</span>'
+        : '<span class="blocked">blocked – ' + (t.status === 'wall' ? 'obstacle' : 'outside grid') + '</span>';
+      html += '<tr><td>' + t.d.mark + ' ' + t.d.name + '</td><td>' + res + '</td></tr>';
+    }
+    html += '</tbody></table>';
+    if (ALGO_INFO[S.algo].informed) {
+      const h = heuristic(i);
+      html += '<p>h(s) = ' + (S.heur === 'manhattan' ? h : h.toFixed(2)) + ' (' + S.heur + ' distance to the destination)</p>';
+    }
+  }
+  box.innerHTML = html;
+}
+
+/* ======================================================================
+ *  Running / animating a search
+ * ==================================================================== */
+function setBusy(busy) {
+  S.running = busy;
+  for (const id of ['#fsMaze', '#fsMode', '#fsAlgo']) $(id).disabled = busy;
+  $('#runBtn').disabled = busy;
+  board.classList.toggle('locked', busy && S.mode !== 'inspect');
+}
+function stopTimer() { if (S.timer) { clearTimeout(S.timer); S.timer = null; } }
+
+function run() {
+  if (S.running) return;
+  clearVisuals();
+  const res = search();
+  setBusy(true);
+  setMsg('Searching with ' + ALGO_INFO[S.algo].label +
+         (ALGO_INFO[S.algo].informed ? ' (' + S.heur + ')' : '') + '…');
+  let vi = 0, pi = 0;
+
+  const step = () => {
+    const [delay, batch] = SPEEDS[+$('#speed').value - 1];
+    for (let k = 0; k < batch; k++) {
+      if (vi < res.order.length) {
+        const c = res.order[vi++];
+        if (S.head >= 0) S.cells[S.head].classList.remove('head');
+        S.cells[c].classList.add('visited', 'head');
+        S.head = c;
+      } else if (res.found && pi < res.path.length) {
+        if (S.head >= 0) { S.cells[S.head].classList.remove('head'); S.head = -1; }
+        S.cells[res.path[pi++]].classList.add('path');
+      } else {
+        finish(res); return;
+      }
+    }
+    $('#stExpanded').textContent = vi;
+    S.timer = setTimeout(step, delay);
+  };
+  step();
+}
+
+function finish(res) {
+  stopTimer();
+  setBusy(false);
+  if (S.head >= 0) { S.cells[S.head].classList.remove('head'); S.head = -1; }
+  $('#stExpanded').textContent = res.order.length;
+  $('#stFrontier').textContent = res.maxFrontier;
+  $('#stTime').textContent = res.ms.toFixed(2) + ' ms';
+  if (res.found) {
+    $('#stPath').textContent = res.path.length - 1;
+    setMsg('Path found: ' + (res.path.length - 1) + ' steps, ' + res.order.length + ' cells expanded.', 'ok');
+  } else {
+    $('#stPath').textContent = 'none';
+    setMsg('Unsolvable: the destination cannot be reached. The search explored all ' + res.order.length +
+           ' reachable cell' + (res.order.length === 1 ? '' : 's') + ' and ran out of options.', 'warn');
+  }
+  updateBadge();
+}
+
+function resetSearch() {
+  stopTimer();
+  setBusy(false);
+  clearVisuals();
+  describeIdle();
+}
+
+/* ======================================================================
+ *  Maze editing
+ * ==================================================================== */
+function randomize() {
+  const total = S.n * S.n, s = startIdx(), g = goalIdx();
+  const limit = Math.min(+$('#limit').value, total - 2);
+  const free = [];
+  for (let i = 0; i < total; i++) if (i !== s && i !== g) free.push(i);
+  const wantSolvable = $('#guarantee').checked;
+  const attempts = wantSolvable ? 300 : 1;
+  let solvedOk = false;
+  for (let a = 0; a < attempts; a++) {
+    S.walls.fill(0);
+    for (let k = 0; k < limit; k++) {
+      const j = k + Math.floor(Math.random() * (free.length - k));
+      [free[k], free[j]] = [free[j], free[k]];
+      S.walls[free[k]] = 1;
+    }
+    if (!wantSolvable || isSolvable()) { solvedOk = true; break; }
+  }
+  refreshAllCells();
+  afterEdit();
+  if (wantSolvable && !solvedOk) {
+    setMsg('Could not find a solvable layout with ' + limit + ' obstacles in 300 tries. Lower the obstacle count.', 'warn');
+  }
+}
+
+function setSize(n) {
+  stopTimer();
+  S.n = n;
+  S.walls = new Uint8Array(n * n);
+  S.start = { x: 0, y: 0 };
+  S.goal  = { x: n - 1, y: n - 1 };
+  S.selected = null;
+  const max = n * n - 2;
+  $('#limit').max = max;
+  $('#limit').value = n === 9 ? 20 : 80;
+  $('#limitVal').textContent = $('#limit').value;
+  buildBoard();
+  randomize();
+}
+
+function inspectCell(i) {
+  S.selected = i;
+  renderInspect();
+}
+
+function handleCellClick(i) {
+  if (S.mode === 'inspect') { inspectCell(i); return; }
+  if (S.running) return;
+  const isStart = i === startIdx(), isGoal = i === goalIdx();
+
+  if (S.mode === 'obstacle') {
+    if (isStart || isGoal) { setMsg('The ' + (isStart ? 'start' : 'destination') + ' cell cannot be an obstacle.', 'warn'); return; }
+    if (S.walls[i]) {
+      S.walls[i] = 0;
+    } else {
+      if (wallCount() >= +$('#limit').value) {
+        setMsg('Obstacle limit reached (' + $('#limit').value + '). Raise the Obstacles slider or remove one first.', 'warn');
+        return;
+      }
+      S.walls[i] = 1;
+    }
+    refreshCell(i);
+  } else if (S.mode === 'start' || S.mode === 'goal') {
+    const key = S.mode;
+    const other = key === 'start' ? goalIdx() : startIdx();
+    if (i === other) { setMsg('Start and destination must be different cells.', 'warn'); return; }
+    const old = key === 'start' ? startIdx() : goalIdx();
+    S.walls[i] = 0;                       // placing on an obstacle clears it
+    S[key] = { x: xOf(i), y: yOf(i) };
+    refreshCell(old); refreshCell(i);
+  }
+  afterEdit();
+}
+
+/* ======================================================================
+ *  Wiring
+ * ==================================================================== */
+board.addEventListener('click', (e) => {
+  const el = e.target.closest('.cell');
+  if (el) handleCellClick(+el.dataset.i);
+});
+board.addEventListener('contextmenu', (e) => {
+  const el = e.target.closest('.cell');
+  if (!el) return;
+  e.preventDefault();
+  inspectCell(+el.dataset.i);
+});
+
+$$('input[name=size]').forEach((r) => r.addEventListener('change', () => { if (r.checked && !S.running) setSize(+r.value); }));
+$$('input[name=mode]').forEach((r) => r.addEventListener('change', () => {
+  if (!r.checked) return;
+  S.mode = r.value;
+  $('#modeNote').textContent = MODE_NOTE[S.mode];
+  board.classList.toggle('locked', S.running && S.mode !== 'inspect');
+}));
+$$('input[name=algo]').forEach((r) => r.addEventListener('change', () => {
+  if (!r.checked) return;
+  S.algo = r.value;
+  syncAlgoUI();
+  clearVisuals();
+  renderInspect();
+  describeIdle();
+}));
+$('#heur').addEventListener('change', (e) => {
+  S.heur = e.target.value;
+  clearVisuals();
+  renderInspect();
+  describeIdle();
+});
+$('#limit').addEventListener('input', (e) => {
+  $('#limitVal').textContent = e.target.value;
+  updatePlaced();
+});
+$('#speed').addEventListener('input', (e) => { $('#speedVal').textContent = e.target.value; });
+$('#showPos').addEventListener('change', (e) => { document.body.classList.toggle('hide-pos', !e.target.checked); });
+$('#randBtn').addEventListener('click', () => { if (!S.running) randomize(); });
+$('#clearBtn').addEventListener('click', () => { if (!S.running) { S.walls.fill(0); refreshAllCells(); afterEdit(); } });
+$('#runBtn').addEventListener('click', run);
+$('#resetBtn').addEventListener('click', resetSearch);
+
+function syncAlgoUI() {
+  const info = ALGO_INFO[S.algo];
+  $('#heur').disabled = !info.informed;
+  $('#algoNote').textContent = info.text;
+}
+
+/* ---------- init ---------- */
+syncAlgoUI();
+$('#modeNote').textContent = MODE_NOTE[S.mode];
+setSize(9);
+
+/* test hook (harmless in the browser) */
+window.__maze = { S, search, isSolvable, transitions, setSize, randomize };
+})();
+</script>
+</body>
+</html>
