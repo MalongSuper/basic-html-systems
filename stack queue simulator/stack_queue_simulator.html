@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stack &amp; Queue Simulator</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b7280;
+    --line: #d1d5db;
+    --soft: #f3f4f6;
+    --accent: #2563eb;
+    --ok: #16a34a;
+    --bad: #dc2626;
+    --warn: #f59e0b;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: #ffffff; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+
+  /* Mode tabs */
+  #tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  #tabs button {
+    background: #fff; color: var(--ink); border: 1.5px solid var(--line);
+    padding: 8px 14px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  #tabs button.active { border-color: var(--ink); background: var(--ink); color: #fff; }
+  #tabs button:disabled { opacity: .5; cursor: not-allowed; }
+  #modeDesc { margin: 0 0 16px; color: var(--muted); min-height: 22px; }
+
+  /* Controls */
+  #controls { border: 1.5px solid var(--line); border-radius: 10px; padding: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .row:last-child { margin-bottom: 0; }
+  .row label { font-weight: 600; min-width: 92px; }
+  input[type=text], input[type=number], select {
+    font: inherit; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink);
+  }
+  input[type=text] { flex: 1 1 220px; min-width: 0; }
+  input[type=number] { width: 80px; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.act {
+    font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px; cursor: pointer;
+    border: 1.5px solid var(--ink); background: #fff; color: var(--ink);
+  }
+  button.act:hover:not(:disabled) { background: var(--soft); }
+  button.add { background: var(--ink); color: #fff; }
+  button.add:hover:not(:disabled) { background: #000; }
+  button.rem { border-color: var(--bad); color: var(--bad); }
+  button.find { border-color: var(--accent); color: var(--accent); }
+  button.ghost { border-color: var(--line); color: var(--muted); font-weight: 500; }
+  button:disabled, input:disabled, select:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 13px; }
+
+  /* Message */
+  #msg { margin: 14px 0; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--line); min-height: 44px; }
+  #msg.ok { border-color: var(--ok); color: #166534; }
+  #msg.err { border-color: var(--bad); color: #991b1b; }
+  #msg.info { border-color: var(--accent); color: #1e40af; }
+
+  /* Visualisation */
+  #viz {
+    border: 1.5px solid var(--line); border-radius: 10px; padding: 20px 14px;
+    min-height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .empty-note { color: var(--muted); font-style: italic; padding: 24px 0; }
+  .cell {
+    min-width: 56px; height: 48px; padding: 0 12px; display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--ink); border-radius: 6px; background: #fff; font-weight: 700;
+    max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cell.seen  { background: var(--soft); border-color: var(--muted); }
+  .cell.visit { background: #fef3c7; border-color: var(--warn); }
+  .cell.found { background: #dcfce7; border-color: var(--ok); }
+  .cell.enter { animation: pop .35s ease-out; }
+  .cell.leave { animation: out .35s ease-in forwards; background: #fee2e2; border-color: var(--bad); }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes out { to { transform: scale(.4); opacity: 0; } }
+  .tag { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--accent); min-height: 18px; white-space: nowrap; }
+  .idx { font-size: 12px; color: var(--muted); min-height: 18px; }
+
+  /* Stack */
+  .stack {
+    display: flex; flex-direction: column; gap: 6px; align-items: stretch;
+    border: 2px solid var(--ink); border-top: none; padding: 10px 14px 12px; min-width: 260px;
+    max-height: 440px; overflow-y: auto;
+  }
+  .srow { display: grid; grid-template-columns: 72px 130px 44px; align-items: center; gap: 8px; justify-content: center; }
+  .srow .tag { text-align: right; }
+  .srow .cell { width: 130px; }
+  .stack-base { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+  /* Queue + Deque */
+  .rowflex { display: flex; align-items: flex-start; gap: 8px; overflow-x: auto; max-width: 100%; padding: 6px 4px 10px; }
+  .item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .link, .none { margin-top: 22px; height: 48px; display: flex; align-items: center; color: var(--muted); font-size: 18px; }
+  .none { font-size: 13px; font-weight: 600; }
+
+  /* Circular */
+  .ring { position: relative; max-width: 100%; }
+  .slot { position: absolute; min-width: 0; padding: 0; border-radius: 50%; font-size: 13px; }
+  .slot.blank { border: 2px dashed var(--line); color: var(--muted); font-weight: 400; }
+  .slot .sidx { position: absolute; top: -17px; font-size: 10px; color: var(--muted); font-weight: 500; }
+  .mark { position: absolute; transform: translate(-50%, -50%); font-size: 12px; font-weight: 800; color: var(--accent); }
+  .ring-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--muted); font-size: 13px; }
+  .ring-center strong { display: block; color: var(--ink); font-size: 16px; }
+  .arrayrow { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 14px; }
+  .arrayrow .cell { min-width: 46px; padding: 0 8px; }
+  .arrayrow .cell.blank { border: 2px dashed var(--line); background: #fff; }
+  .caption { color: var(--muted); font-size: 13px; margin-top: 10px; text-align: center; }
+
+  /* Bottom panels */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  @media (max-width: 720px) { .panels { grid-template-columns: 1fr; } .srow { grid-template-columns: 60px 110px 40px; } .srow .cell { width: 110px; } }
+  .panel { border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .panel h2 { font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  table.info { width: 100%; border-collapse: collapse; }
+  table.info td { padding: 4px 0; border-bottom: 1px solid var(--soft); }
+  table.info td:first-child { color: var(--muted); width: 46%; }
+  table.info tr:last-child td { border-bottom: none; }
+  #log { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; font-size: 13px; }
+  #log li { padding: 4px 0; border-bottom: 1px solid var(--soft); }
+  #log li:last-child { border-bottom: none; }
+  #log code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; }
+  #log .e { color: var(--bad); }
+  #log .f { color: var(--accent); }
+  #log .o { color: var(--ok); }
+  #log .none-yet { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Stack &amp; Queue Simulator</h1>
+  <p class="sub">Enter a sequence of values, then push, pop, enqueue, dequeue or search.</p>
+
+  <div id="tabs" role="tablist" aria-label="Data structure"></div>
+  <p id="modeDesc"></p>
+
+  <div id="controls">
+    <div class="row">
+      <label for="val">Values</label>
+      <input type="text" id="val" placeholder="e.g. 5, 8, 3, 12  (comma or space separated)" autocomplete="off">
+      <span id="addBtns" class="row" style="margin:0"></span>
+    </div>
+    <div class="row">
+      <label for="remBtns">Remove</label>
+      <span id="remBtns" class="row" style="margin:0"></span>
+    </div>
+    <div class="row">
+      <label for="search">Search</label>
+      <input type="text" id="search" placeholder="Value to look for" autocomplete="off">
+      <button class="act find" id="searchBtn">Search</button>
+    </div>
+    <div class="row" id="capRow" style="display:none">
+      <label for="cap">Capacity</label>
+      <input type="number" id="cap" min="2" max="16" value="8">
+      <button class="act ghost" id="capBtn">Set &amp; reset</button>
+      <span class="hint">2 to 16 slots</span>
+    </div>
+    <div class="row">
+      <label for="speed">Speed</label>
+      <select id="speed">
+        <option value="slow">Slow</option>
+        <option value="normal" selected>Normal</option>
+        <option value="fast">Fast</option>
+      </select>
+      <button class="act ghost" id="exampleBtn">Fill example</button>
+      <button class="act ghost" id="clearBtn">Clear structure</button>
+    </div>
+  </div>
+
+  <div id="msg" class="msg info" role="status" aria-live="polite"></div>
+
+  <div id="viz"></div>
+
+  <div class="panels">
+    <div class="panel">
+      <h2>Status</h2>
+      <table class="info" id="info"></table>
+    </div>
+    <div class="panel">
+      <h2>Operation log</h2>
+      <ul id="log"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Helpers ---------- */
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const SPEEDS = { slow: 900, normal: 550, fast: 250 };
+  const delay = () => SPEEDS[$("#speed").value];
+
+  /* ---------- State ---------- */
+  const state = {
+    mode: "stack",
+    stack: [],
+    queue: [],
+    deque: [],
+    circ: { max: 8, front: -1, rear: -1, items: new Array(8).fill(null) }
+  };
+  let busy = false;
+  let logEntries = [];
+
+  const MODES = {
+    stack: {
+      name: "Stack",
+      desc: "LIFO: Last In, First Out. Push and pop both happen at the top.",
+      add: [{ id: "push", label: "Push" }],
+      rem: [{ id: "pop", label: "Pop" }]
+    },
+    queue: {
+      name: "Queue",
+      desc: "FIFO: First In, First Out. Enqueue at the rear, dequeue from the front.",
+      add: [{ id: "enqueue", label: "Enqueue" }],
+      rem: [{ id: "dequeue", label: "Dequeue" }]
+    },
+    circular: {
+      name: "Circular Queue",
+      desc: "A fixed-size queue whose front and rear indices wrap around the array. Enqueue fails with \"Queue Overflow\" when every slot is used.",
+      add: [{ id: "enqueue", label: "Enqueue" }],
+      rem: [{ id: "dequeue", label: "Dequeue" }]
+    },
+    deque: {
+      name: "Doubly Ended Queue",
+      desc: "A deque (doubly linked list): enqueue and dequeue at either end.",
+      add: [{ id: "enqueueFront", label: "Enqueue Front" }, { id: "enqueueRear", label: "Enqueue Rear" }],
+      rem: [{ id: "dequeueFront", label: "Dequeue Front" }, { id: "dequeueRear", label: "Dequeue Rear" }]
+    }
+  };
+
+  /* ---------- Circular queue logic (mirrors the CircularQueue class) ---------- */
+  function circSize() {
+    const c = state.circ;
+    if (c.front === -1) return 0;
+    return c.rear >= c.front ? c.rear - c.front + 1 : c.max - c.front + c.rear + 1;
+  }
+  function circIsFull() {
+    const c = state.circ;
+    return (c.front === 0 && c.rear === c.max - 1) || c.front === c.rear + 1;
+  }
+  function circEnqueue(v) {
+    const c = state.circ;
+    if (circIsFull()) return false;
+    if (c.front === -1) { c.front = 0; c.rear = 0; }
+    else c.rear = c.rear === c.max - 1 ? 0 : c.rear + 1;
+    c.items[c.rear] = v;
+    return true;
+  }
+  function circRemove() {
+    const c = state.circ;
+    c.items[c.front] = null;
+    if (c.front === c.rear) { c.front = -1; c.rear = -1; }
+    else c.front = c.front === c.max - 1 ? 0 : c.front + 1;
+  }
+  function circOrder() {            // physical slot indices, front to rear
+    const c = state.circ, out = [];
+    if (c.front === -1) return out;
+    let i = c.front;
+    while (true) { out.push(i); if (i === c.rear) break; i = (i + 1) % c.max; }
+    return out;
+  }
+
+  /* ---------- Messages and log ---------- */
+  function say(text, type) {
+    const m = $("#msg");
+    m.className = "msg " + (type || "info");
+    m.textContent = text;
+  }
+  function log(call, result, kind) {
+    logEntries.unshift({ call, result, kind });
+    if (logEntries.length > 60) logEntries.pop();
+    renderLog();
+  }
+  function renderLog() {
+    const ul = $("#log");
+    ul.replaceChildren();
+    if (!logEntries.length) {
+      ul.appendChild(el("li", "none-yet", "Nothing yet. Try pushing or enqueuing a few values."));
+      return;
+    }
+    for (const e of logEntries) {
+      const li = el("li");
+      li.appendChild(el("code", null, e.call));
+      li.appendChild(document.createTextNode("  \u2192  "));
+      li.appendChild(el("span", e.kind, e.result));
+      ul.appendChild(li);
+    }
+  }
+
+  /* ---------- Rendering ---------- */
+  function itemBlock(value, i, tagText, mark) {
+    const w = el("div", "item");
+    w.appendChild(el("div", "tag", tagText || ""));
+    w.appendChild(el("div", "cell " + (mark || ""), value));
+    w.appendChild(el("div", "idx", "[" + i + "]"));
+    return w;
+  }
+
+  function rStack(viz, marks) {
+    const a = state.stack;
+    if (!a.length) { viz.appendChild(el("div", "empty-note", "Stack is empty")); return; }
+    const box = el("div", "stack");
+    for (let i = a.length - 1; i >= 0; i--) {
+      const row = el("div", "srow");
+      row.appendChild(el("span", "tag", i === a.length - 1 ? "TOP \u25B6" : i === 0 ? "BOTTOM \u25B6" : ""));
+      row.appendChild(el("div", "cell " + (marks[i] || ""), a[i]));
+      row.appendChild(el("span", "idx", "[" + i + "]"));
+      box.appendChild(row);
+    }
+    viz.appendChild(box);
+    viz.appendChild(el("div", "caption", "Items enter and leave only at the top."));
+  }
+
+  function endTag(i, n) {
+    if (n === 1) return "FRONT \u00B7 REAR";
+    if (i === 0) return "FRONT";
+    if (i === n - 1) return "REAR";
+    return "";
+  }
+
+  function rQueue(viz, marks) {
+    const a = state.queue;
+    if (!a.length) { viz.appendChild(el("div", "empty-note", "Queue is empty")); return; }
+    const row = el("div", "rowflex");
+    a.forEach((v, i) => row.appendChild(itemBlock(v, i, endTag(i, a.length), marks[i])));
+    viz.appendChild(row);
+    viz.appendChild(el("div", "caption", "Dequeue from the FRONT (left) \u00B7 Enqueue at the REAR (right)"));
+  }
+
+  function rDeque(viz, marks) {
+    const a = state.deque;
+    if (!a.length) { viz.appendChild(el("div", "empty-note", "Deque is empty")); return; }
+    const row = el("div", "rowflex");
+    row.appendChild(el("div", "none", "None"));
+    a.forEach((v, i) => {
+      row.appendChild(el("div", "link", "\u21C4"));
+      row.appendChild(itemBlock(v, i, endTag(i, a.length), marks[i]));
+    });
+    row.appendChild(el("div", "link", "\u21C4"));
+    row.appendChild(el("div", "none", "None"));
+    viz.appendChild(row);
+    viz.appendChild(el("div", "caption", "Each node points to its previous and next node. Both ends are open."));
+  }
+
+  function rCirc(viz, marks) {
+    const c = state.circ, n = c.max;
+    const R = 118;
+    const size = Math.max(30, Math.min(48, Math.floor((2 * Math.PI * R / n) * 0.8)));
+    const dim = 2 * R + size + 60;
+    const cx = dim / 2, cy = dim / 2;
+    const ring = el("div", "ring");
+    ring.style.width = dim + "px";
+    ring.style.height = dim + "px";
+
+    for (let i = 0; i < n; i++) {
+      const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+      const filled = c.items[i] !== null;
+      const slot = el("div", "cell slot " + (filled ? "" : "blank ") + (marks[i] || ""));
+      slot.style.width = size + "px";
+      slot.style.height = size + "px";
+      slot.style.left = (cx + R * Math.cos(ang) - size / 2) + "px";
+      slot.style.top = (cy + R * Math.sin(ang) - size / 2) + "px";
+      slot.textContent = filled ? c.items[i] : "";
+      slot.appendChild(el("span", "sidx", String(i)));
+      ring.appendChild(slot);
+
+      const isF = i === c.front, isR = i === c.rear;
+      if (c.front !== -1 && (isF || isR)) {
+        const m = el("div", "mark", isF && isR ? "F/R" : isF ? "F" : "R");
+        const rr = R - size / 2 - 16;
+        m.style.left = (cx + rr * Math.cos(ang)) + "px";
+        m.style.top = (cy + rr * Math.sin(ang)) + "px";
+        ring.appendChild(m);
+      }
+    }
+    const center = el("div", "ring-center");
+    center.appendChild(el("strong", null, circSize() + " / " + n));
+    center.appendChild(document.createTextNode("slots used"));
+    ring.appendChild(center);
+    viz.appendChild(ring);
+
+    const arr = el("div", "arrayrow");
+    for (let i = 0; i < n; i++) {
+      const w = el("div", "item");
+      const tag = c.front !== -1 && (i === c.front || i === c.rear)
+        ? (i === c.front && i === c.rear ? "FRONT \u00B7 REAR" : i === c.front ? "FRONT" : "REAR") : "";
+      w.appendChild(el("div", "tag", tag));
+      w.appendChild(el("div", "cell " + (c.items[i] === null ? "blank " : "") + (marks[i] || ""), c.items[i] === null ? "" : c.items[i]));
+      w.appendChild(el("div", "idx", "[" + i + "]"));
+      arr.appendChild(w);
+    }
+    viz.appendChild(arr);
+    viz.appendChild(el("div", "caption", "Indices wrap from the last slot back to slot 0."));
+  }
+
+  function contentsText() {
+    const join = (a, arrow) => (a.length ? a.join(arrow) : "(empty)");
+    switch (state.mode) {
+      case "stack": return join(state.stack, " \u2192 ") + (state.stack.length ? "   (bottom \u2192 top)" : "");
+      case "queue": return join(state.queue, " \u2192 ") + (state.queue.length ? "   (front \u2192 rear)" : "");
+      case "deque": return join(state.deque, " \u21C4 ") + (state.deque.length ? "   (front \u2192 rear)" : "");
+      default: {
+        const vals = circOrder().map((i) => state.circ.items[i]);
+        return join(vals, " \u2192 ") + (vals.length ? "   (front \u2192 rear)" : "");
+      }
+    }
+  }
+
+  function renderInfo() {
+    const t = $("#info");
+    t.replaceChildren();
+    const rows = [];
+    const yn = (b) => (b ? "True" : "False");
+    const val = (v) => (v === undefined || v === null ? "None" : String(v));
+    if (state.mode === "stack") {
+      const a = state.stack;
+      rows.push(["Size", a.length], ["Top (get_top)", val(a[a.length - 1])], ["is_empty()", yn(!a.length)]);
+    } else if (state.mode === "queue") {
+      const a = state.queue;
+      rows.push(["Size", a.length], ["Front", val(a[0])], ["Rear", val(a[a.length - 1])], ["is_empty()", yn(!a.length)]);
+    } else if (state.mode === "deque") {
+      const a = state.deque;
+      rows.push(["Size", a.length], ["Front", val(a[0])], ["Rear", val(a[a.length - 1])], ["is_empty()", yn(!a.length)]);
+    } else {
+      const c = state.circ, s = circSize();
+      rows.push(
+        ["Capacity", c.max], ["Size", s],
+        ["Front index", c.front], ["Rear index", c.rear],
+        ["Front value", c.front === -1 ? "None" : val(c.items[c.front])],
+        ["Rear value", c.rear === -1 ? "None" : val(c.items[c.rear])],
+        ["is_empty()", yn(c.front === -1)], ["is full", yn(circIsFull())]
+      );
+    }
+    rows.push(["Contents", contentsText()]);
+    for (const [k, v] of rows) {
+      const tr = el("tr");
+      tr.appendChild(el("td", null, k));
+      tr.appendChild(el("td", null, String(v)));
+      t.appendChild(tr);
+    }
+  }
+
+  function render(marks) {
+    marks = marks || {};
+    const viz = $("#viz");
+    viz.replaceChildren();
+    ({ stack: rStack, queue: rQueue, deque: rDeque, circular: rCirc })[state.mode](viz, marks);
+    renderInfo();
+  }
+
+  /* ---------- Controls ---------- */
+  function renderControls() {
+    const m = MODES[state.mode];
+    $("#modeDesc").textContent = m.desc;
+    const addBox = $("#addBtns"), remBox = $("#remBtns");
+    addBox.replaceChildren();
+    remBox.replaceChildren();
+    for (const b of m.add) {
+      const btn = el("button", "act add", b.label);
+      btn.addEventListener("click", () => doAdd(b.id));
+      addBox.appendChild(btn);
+    }
+    for (const b of m.rem) {
+      const btn = el("button", "act rem", b.label);
+      btn.addEventListener("click", () => doRemove(b.id));
+      remBox.appendChild(btn);
+    }
+    $("#capRow").style.display = state.mode === "circular" ? "flex" : "none";
+    $("#cap").value = state.circ.max;
+  }
+
+  function renderTabs() {
+    const tabs = $("#tabs");
+    tabs.replaceChildren();
+    for (const key of Object.keys(MODES)) {
+      const b = el("button", state.mode === key ? "active" : "", MODES[key].name);
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", state.mode === key ? "true" : "false");
+      b.addEventListener("click", () => switchMode(key));
+      tabs.appendChild(b);
+    }
+  }
+
+  function setBusy(b) {
+    busy = b;
+    document.querySelectorAll("#tabs button, #controls button, #controls input, #controls select")
+      .forEach((n) => { n.disabled = b; });
+  }
+
+  async function run(fn) {
+    if (busy) return;
+    setBusy(true);
+    try { await fn(); } finally { setBusy(false); }
+  }
+
+  function switchMode(key) {
+    if (busy || key === state.mode) return;
+    state.mode = key;
+    renderTabs();
+    renderControls();
+    render();
+    say("Switched to " + MODES[key].name + ".", "info");
+  }
+
+  function parseValues() {
+    return $("#val").value.split(/[\s,;]+/).filter(Boolean);
+  }
+
+  /* ---------- Add operations ---------- */
+  async function addOne(kind, v) {
+    if (kind === "push") {
+      state.stack.push(v);
+      render({ [state.stack.length - 1]: "enter" });
+      log("push(" + v + ")", "ok", "o");
+      say("Pushed " + v + " onto the top of the stack.", "ok");
+      return true;
+    }
+    if (kind === "enqueue" && state.mode === "queue") {
+      state.queue.push(v);
+      render({ [state.queue.length - 1]: "enter" });
+      log("enqueue(" + v + ")", "ok", "o");
+      say("Enqueued " + v + " at the rear of the queue.", "ok");
+      return true;
+    }
+    if (kind === "enqueue" && state.mode === "circular") {
+      if (!circEnqueue(v)) {
+        log("enqueue(" + v + ")", "Queue Overflow", "e");
+        say("Queue Overflow: the circular queue is full (" + state.circ.max + " slots). " + v + " was not added.", "err");
+        render();
+        return false;
+      }
+      render({ [state.circ.rear]: "enter" });
+      log("enqueue(" + v + ")", "ok (rear = " + state.circ.rear + ")", "o");
+      say("Enqueued " + v + " into slot " + state.circ.rear + ".", "ok");
+      return true;
+    }
+    if (kind === "enqueueFront") {
+      state.deque.unshift(v);
+      render({ 0: "enter" });
+      log("enqueue_front(" + v + ")", "ok", "o");
+      say("Enqueued " + v + " at the front of the deque.", "ok");
+      return true;
+    }
+    if (kind === "enqueueRear") {
+      state.deque.push(v);
+      render({ [state.deque.length - 1]: "enter" });
+      log("enqueue_rear(" + v + ")", "ok", "o");
+      say("Enqueued " + v + " at the rear of the deque.", "ok");
+      return true;
+    }
+    return false;
+  }
+
+  function doAdd(kind) {
+    const vals = parseValues();
+    if (!vals.length) { say("Enter one or more values first, for example: 5, 8, 3", "err"); return; }
+    run(async () => {
+      let added = 0;
+      for (const v of vals) {
+        const ok = await addOne(kind, v);
+        if (!ok) break;
+        added++;
+        await sleep(delay() * 0.6);
+      }
+      if (added === vals.length) $("#val").value = "";
+      else $("#val").value = vals.slice(added).join(", ");
+    });
+  }
+
+  /* ---------- Remove operations ---------- */
+  async function removeOne(kind) {
+    const mode = state.mode;
+    const names = {
+      pop: "pop()", dequeue: "dequeue()", dequeueFront: "dequeue_front()", dequeueRear: "dequeue_rear()"
+    };
+    const call = names[kind];
+
+    if (mode === "stack") {
+      const a = state.stack;
+      if (!a.length) { log(call, "None (stack is empty)", "e"); say("The stack is empty, so pop() returns None.", "err"); return; }
+      const v = a[a.length - 1];
+      render({ [a.length - 1]: "leave" });
+      await sleep(380);
+      a.pop();
+      render();
+      log(call, String(v), "o");
+      say("Popped " + v + " from the top of the stack.", "ok");
+      return;
+    }
+    if (mode === "queue") {
+      const a = state.queue;
+      if (!a.length) { log(call, "Queue is empty", "e"); say("The queue is empty, so there is nothing to dequeue.", "err"); return; }
+      const v = a[0];
+      render({ 0: "leave" });
+      await sleep(380);
+      a.shift();
+      render();
+      log(call, String(v), "o");
+      say("Dequeued " + v + " from the front of the queue.", "ok");
+      return;
+    }
+    if (mode === "circular") {
+      const c = state.circ;
+      if (c.front === -1) { log(call, "Queue is empty", "e"); say("The circular queue is empty, so there is nothing to dequeue.", "err"); return; }
+      const idx = c.front, v = c.items[idx];
+      render({ [idx]: "leave" });
+      await sleep(380);
+      circRemove();
+      render();
+      log(call, String(v) + " (slot " + idx + ")", "o");
+      say("Dequeued " + v + " from slot " + idx + ".", "ok");
+      return;
+    }
+    // deque
+    const a = state.deque;
+    if (!a.length) { log(call, "Deque is empty", "e"); say("The deque is empty, so there is nothing to dequeue.", "err"); return; }
+    const front = kind === "dequeueFront";
+    const idx = front ? 0 : a.length - 1;
+    const v = a[idx];
+    render({ [idx]: "leave" });
+    await sleep(380);
+    if (front) a.shift(); else a.pop();
+    render();
+    log(call, String(v), "o");
+    say("Dequeued " + v + " from the " + (front ? "front" : "rear") + " of the deque.", "ok");
+  }
+
+  function doRemove(kind) { run(() => removeOne(kind)); }
+
+  /* ---------- Search ---------- */
+  function traversal() {
+    switch (state.mode) {
+      case "stack": return state.stack.map((v, i) => ({ idx: i, value: v })).reverse();   // top first
+      case "queue": return state.queue.map((v, i) => ({ idx: i, value: v }));
+      case "deque": return state.deque.map((v, i) => ({ idx: i, value: v }));
+      default: return circOrder().map((i) => ({ idx: i, value: state.circ.items[i] }));
+    }
+  }
+
+  function doSearch() {
+    const target = $("#search").value.trim();
+    if (!target) { say("Type a value to search for.", "err"); return; }
+    const order = traversal();
+    if (!order.length) {
+      log("search(" + target + ")", "empty structure", "e");
+      say("The " + MODES[state.mode].name.toLowerCase() + " is empty, so there is nothing to search.", "err");
+      return;
+    }
+    run(async () => {
+      const marks = {};
+      let foundAt = -1;
+      const from = state.mode === "stack" ? "top" : "front";
+      for (let n = 0; n < order.length; n++) {
+        const { idx, value } = order[n];
+        render(Object.assign({}, marks, { [idx]: "visit" }));
+        say("Step " + (n + 1) + ": comparing " + value + " with " + target + " (scanning from the " + from + ")", "info");
+        await sleep(delay());
+        if (value === target) { marks[idx] = "found"; foundAt = n; break; }
+        marks[idx] = "seen";
+      }
+      render(marks);
+      if (foundAt >= 0) {
+        const hit = order[foundAt];
+        let where;
+        if (state.mode === "stack") where = "index " + hit.idx + ", " + foundAt + " place" + (foundAt === 1 ? "" : "s") + " below the top";
+        else if (state.mode === "circular") where = "slot " + hit.idx + ", " + foundAt + " place" + (foundAt === 1 ? "" : "s") + " behind the front";
+        else where = "index " + hit.idx + ", " + foundAt + " place" + (foundAt === 1 ? "" : "s") + " behind the front";
+        const steps = foundAt + 1;
+        log("search(" + target + ")", "found at " + where, "f");
+        say("Found " + target + " at " + where + " after " + steps + " comparison" + (steps === 1 ? "" : "s") + ".", "ok");
+      } else {
+        log("search(" + target + ")", "not found", "e");
+        say(target + " is not in the " + MODES[state.mode].name.toLowerCase() + " (checked all " + order.length + " item" + (order.length === 1 ? "" : "s") + ").", "err");
+      }
+    });
+  }
+
+  /* ---------- Misc controls ---------- */
+  function clearStructure() {
+    if (state.mode === "stack") state.stack = [];
+    else if (state.mode === "queue") state.queue = [];
+    else if (state.mode === "deque") state.deque = [];
+    else state.circ = { max: state.circ.max, front: -1, rear: -1, items: new Array(state.circ.max).fill(null) };
+    render();
+    log("clear()", "cleared", "o");
+    say(MODES[state.mode].name + " cleared.", "info");
+  }
+
+  function setCapacity() {
+    let n = parseInt($("#cap").value, 10);
+    if (isNaN(n) || n < 2 || n > 16) { say("Capacity must be a whole number from 2 to 16.", "err"); return; }
+    state.circ = { max: n, front: -1, rear: -1, items: new Array(n).fill(null) };
+    render();
+    log("CircularQueue(" + n + ")", "new empty queue", "o");
+    say("Circular queue reset with capacity " + n + ".", "info");
+  }
+
+  /* ---------- Wire up ---------- */
+  $("#searchBtn").addEventListener("click", doSearch);
+  $("#clearBtn").addEventListener("click", () => { if (!busy) clearStructure(); });
+  $("#capBtn").addEventListener("click", () => { if (!busy) setCapacity(); });
+  $("#exampleBtn").addEventListener("click", () => { if (!busy) { $("#val").value = "5, 8, 3, 12, 7"; $("#search").value = "3"; } });
+  $("#val").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const primary = state.mode === "stack" ? "push" : state.mode === "deque" ? "enqueueRear" : "enqueue";
+    doAdd(primary);
+  });
+  $("#search").addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+
+  renderTabs();
+  renderControls();
+  render();
+  renderLog();
+  say("Pick a structure, type some values and press Push / Enqueue.", "info");
+})();
+</script>
+</body>
+</html>
