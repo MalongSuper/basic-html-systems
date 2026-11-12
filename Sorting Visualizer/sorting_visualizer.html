@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sorting Algorithms Visualizer</title>
+<style>
+  :root {
+    --navy: #1f3a6e;
+    --orange: #ffd9a0;
+    --orange-text: #5a3500;
+    --blue: #add8e6;
+    --blue-text: #0f3a4d;
+    --gray: #6b7280;
+    --line: #d6dbe4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #1b2333;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .app { max-width: 1000px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { margin: 0 0 18px; font-size: 24px; text-align: center; color: var(--navy); }
+
+  /* ---------- entry ---------- */
+  .entry { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+  .entry label { font-weight: 600; }
+  .entry input[type="text"] {
+    width: min(360px, 100%); padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; font: 15px/1.2 ui-monospace, Menlo, Consolas, monospace;
+  }
+  .entry input[type="text"]:focus { outline: 2px solid var(--blue); border-color: var(--navy); }
+  .err { min-height: 20px; margin-top: 4px; text-align: center; font-size: 13px; color: #b42318; }
+
+  button {
+    font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--navy); background: #fff; color: var(--navy);
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:hover:not(:disabled) { background: #eef2fa; }
+  button.primary { background: var(--navy); color: #fff; }
+  button.primary:hover:not(:disabled) { background: #2a4b8c; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ---------- stage ---------- */
+  .stage { margin-top: 8px; padding: 16px 12px 12px; border: 1px solid var(--line); border-radius: 14px; }
+  .caption { min-height: 24px; text-align: center; font-size: 15px; color: var(--navy); font-weight: 600; }
+  .rowlabel { margin: 10px 0 4px; text-align: center; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+  .array { display: flex; justify-content: center; align-items: flex-end; gap: 6px; padding: 0 4px; }
+  .array.main { min-height: 210px; }
+  .array.aux  { min-height: 120px; }
+  .cell { flex: 1 1 0; min-width: 22px; max-width: 58px; display: flex; flex-direction: column; align-items: center; }
+  .bar {
+    width: 100%; display: flex; align-items: flex-start; justify-content: center; padding-top: 6px;
+    border-radius: 8px 8px 0 0; background: var(--navy); color: #fff; font-weight: 700; font-size: 15px;
+    transition: height .15s ease, background-color .12s ease;
+  }
+  .aux .bar { font-size: 13px; padding-top: 4px; }
+  .bar.hi   { background: var(--orange); color: var(--orange-text); }
+  .bar.done { background: var(--blue);   color: var(--blue-text); }
+  .bar.empty { background: transparent; border: 2px dashed var(--line); color: transparent; }
+  .bar.mark { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--navy); }
+  .idx { margin-top: 5px; font-size: 11px; color: var(--gray); }
+
+  /* heap tree sits to the left of the array */
+  .mainrow { display: flex; align-items: flex-start; gap: 16px; }
+  .arrcol { flex: 1 1 0; min-width: 0; }
+  .heapwrap { flex: 0 0 40%; max-width: 40%; }
+  .heapwrap svg { display: block; width: 100%; height: auto; margin: 0 auto; }
+  @media (max-width: 720px) {
+    .mainrow { flex-direction: column; align-items: stretch; }
+    .heapwrap { flex-basis: auto; max-width: none; }
+  }
+
+  .view { min-height: 150px; margin-top: 14px; }
+
+  /* radix buckets */
+  .passlabel { margin-bottom: 6px; text-align: center; font-size: 13px; color: var(--gray); }
+  .buckets { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; }
+  .bucket {
+    min-height: 120px; padding: 4px 2px; display: flex; flex-direction: column-reverse; align-items: center; gap: 3px;
+    border: 2px solid var(--navy); border-top: none; border-radius: 0 0 10px 10px; background: #f7f9fc;
+    transition: background-color .12s ease;
+  }
+  .bucket.hi { background: var(--orange); }
+  .chip { min-width: 26px; padding: 2px 4px; text-align: center; border-radius: 6px; background: var(--navy); color: #fff; font-size: 12px; font-weight: 700; }
+  .blabel { margin-top: 4px; text-align: center; font-weight: 700; color: var(--navy); }
+
+  /* counting sort: the count (index) array */
+  .counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 4px; padding: 0 4px; }
+  .cc { display: flex; flex-direction: column; align-items: center; width: 30px; }
+  .cbox {
+    width: 100%; height: 30px; display: flex; align-items: center; justify-content: center;
+    border-radius: 6px; background: var(--navy); color: #fff; font-weight: 700; font-size: 13px;
+    transition: background-color .12s ease;
+  }
+  .cbox.zero { background: #f1f4f9; color: #9aa3b2; }
+  .cbox.hi { background: var(--orange); color: var(--orange-text); }
+
+  /* pigeonholes: an index box plus a wide slot per hole */
+  .holes { display: grid; grid-auto-flow: column; gap: 6px 14px; }
+  .hole { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+  .hidx {
+    flex: 0 0 34px; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; background: var(--navy); color: #fff; font-weight: 700; font-size: 14px;
+    transition: background-color .12s ease;
+  }
+  .hslot {
+    flex: 1 1 0; min-width: 0; min-height: 28px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px;
+    padding: 2px 10px; border-radius: 6px; background: #f1f4f9; font-weight: 700; font-size: 15px;
+    transition: background-color .12s ease;
+  }
+  .hole.hi .hidx  { background: var(--orange); color: var(--orange-text); }
+  .hole.hi .hslot { background: var(--orange); color: var(--orange-text); }
+  @media (max-width: 560px) {
+    .holes { grid-auto-flow: row; grid-template-columns: repeat(2, 1fr) !important; grid-template-rows: none !important; }
+  }
+
+  /* sleep clock */
+  .clockwrap { text-align: center; }
+  .clock {
+    display: inline-block; padding: 8px 22px; border-radius: 12px; background: #0b1d3a; color: #fff;
+    font: 700 42px/1.2 ui-monospace, "Courier New", monospace; letter-spacing: 4px;
+    box-shadow: inset 0 0 0 3px #22427a;
+  }
+  .clocknote { margin-top: 6px; font-size: 12px; color: var(--gray); }
+
+  /* bogo log */
+  .bogolog { max-width: 560px; margin: 0 auto; }
+  .bl { display: grid; grid-template-columns: 44px 1fr 120px; gap: 8px; padding: 2px 8px; font: 13px/1.6 ui-monospace, Menlo, Consolas, monospace; border-radius: 6px; }
+  .bl.no span:last-child { color: #b42318; }
+  .bl.ok { background: var(--blue); color: var(--blue-text); font-weight: 700; }
+  .placeholder { text-align: center; font-size: 13px; color: var(--gray); padding-top: 40px; }
+
+  /* bead abacus */
+  .abacus { display: block; width: 100%; margin: 0 auto; height: auto; }
+
+  .legend { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--gray); }
+  .legend i { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; border-radius: 4px; }
+
+  /* ---------- controls ---------- */
+  .controls { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .runrow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .selrow, .speedrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .selrow label, .speedrow label { font-weight: 600; }
+  select { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; min-width: 190px; }
+  select:disabled { opacity: .55; }
+  .info { font-size: 13px; color: var(--gray); text-align: center; }
+
+  @media (max-width: 560px) {
+    .clock { font-size: 30px; padding: 6px 14px; }
+    .chip { min-width: 18px; font-size: 10px; padding: 1px 2px; }
+    .bl { grid-template-columns: 34px 1fr 96px; font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Sorting Algorithms Visualizer</h1>
+
+  <!-- Entry -->
+  <div class="entry">
+    <label for="vals">Array values</label>
+    <input type="text" id="vals" value="[23, 47, 20, 63, 15]" spellcheck="false" autocomplete="off">
+    <button id="setBtn">Set</button>
+    <button id="randBtn">Random</button>
+  </div>
+  <div class="err" id="err"></div>
+
+  <!-- Stage -->
+  <div class="stage">
+    <div class="caption" id="caption"></div>
+    <div class="mainrow">
+      <div class="heapwrap" id="heapWrap" style="display:none">
+        <div class="rowlabel">Max-heap (binary tree)</div>
+        <div id="heap"></div>
+      </div>
+      <div class="arrcol">
+        <div class="rowlabel" id="mainLabel">Array</div>
+        <div class="array main" id="arr"></div>
+      </div>
+    </div>
+    <div id="countWrap" style="display:none">
+      <div class="rowlabel" id="countLabel"></div>
+      <div class="counts" id="counts"></div>
+    </div>
+    <div id="auxWrap" style="display:none">
+      <div class="rowlabel" id="auxLabel"></div>
+      <div class="array aux" id="aux"></div>
+    </div>
+    <div class="view" id="view"></div>
+    <div class="legend">
+      <span><i style="background:var(--navy)"></i>Unsorted</span>
+      <span><i style="background:var(--orange)"></i>Being considered</span>
+      <span><i style="background:var(--blue)"></i>Sorted</span>
+    </div>
+  </div>
+
+  <!-- Controls: Run above the algorithm selection -->
+  <div class="controls">
+    <div class="runrow">
+      <button id="run" class="primary">&#9654; Run</button>
+      <button id="prev" disabled title="Previous step">&#9664; Prev</button>
+      <button id="pause" disabled>Pause</button>
+      <button id="next" title="Next step">Next &#9654;</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div class="selrow">
+      <label for="algo">Sorting algorithm</label>
+      <select id="algo"></select>
+    </div>
+    <div class="speedrow">
+      <label for="speed">Speed</label>
+      <input type="range" id="speed" min="1" max="10" value="4">
+    </div>
+    <div class="info" id="info"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   Sorting Algorithms Visualizer
+   Every algorithm is a generator: it mutates the shared state S and
+   `yield`s after each visible step. The runner renders S between yields.
+   A yielded number scales that step's delay (e.g. 0.3 = faster).
+   ===================================================================== */
+const DEFAULT_VALUES = [23, 47, 20, 63, 15];
+const MIN_LEN = 2, MAX_LEN = 15, MIN_VAL = 1, MAX_VAL = 99;
+
+let entry = DEFAULT_VALUES.slice();   // the values currently entered
+let S = null;                         // the live visual state (the generators mutate this)
+let R = null;                         // the state currently being drawn (a recorded snapshot)
+
+/* ---------------- helpers ---------------- */
+const $ = id => document.getElementById(id);
+const swap = (a, i, j) => { const t = a[i]; a[i] = a[j]; a[j] = t; };
+const allIdx = a => a.map((_, i) => i);
+function isSorted(arr) {
+  for (let i = 0; i < arr.length - 1; i++) if (arr[i] > arr[i + 1]) return false;
+  return true;
+}
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) swap(a, i, Math.floor(Math.random() * (i + 1)));
+  return a;
+}
+
+/* ---------------- state ---------------- */
+function freshState() {
+  const arr = entry.slice();
+  const meta = ALGOS.find(a => a.key === $('algo').value);
+  const n = arr.length, mx = Math.max(...arr);
+  S = {
+    arr, vmax: mx,
+    hi: [],          // indices being considered (light orange)
+    mark: [],        // indices with an outline (pivot / current minimum)
+    done: false,
+    caption: 'Press Run to play, or Next to step through.',
+    aux: null, auxLabel: '', auxHi: [],
+    view: meta.view,
+    bead: null, buckets: null, bhi: -1, passLabel: '', clock: 0, bogo: null,
+    heapSize: n      // how many leading elements still belong to the heap
+  };
+  if (meta.view === 'bead')  S.bead = { grid: Array.from({ length: n }, () => Array(mx).fill(false)), rows: n, cols: mx, moved: [] };
+  if (meta.view === 'radix') S.buckets = Array.from({ length: 10 }, () => []);
+  if (meta.view === 'counting') {
+    S.count = Array(mx).fill(0); S.countHi = [];
+    S.countLabel = 'Count array: how many times each value appears (index = value)';
+    S.aux = Array(n).fill(null); S.auxLabel = 'Position array (output)';
+  }
+  if (meta.view === 'pigeonhole') {
+    const mn = Math.min(...arr);
+    S.holeMin = mn; S.hhi = -1;
+    S.holes = Array.from({ length: mx - mn + 1 }, () => []);
+  }
+  if (meta.view === 'sleep') { S.aux = Array(n).fill(null); S.auxLabel = 'sorted_array (output)'; }
+  if (meta.view === 'bogo')  S.bogo = { log: [] };
+}
+
+/* =====================================================================
+   ALGORITHMS (JavaScript ports of sorting.md, written as generators)
+   ===================================================================== */
+
+/* ---- Bead Sort: gravity on an abacus ---- */
+function* beadSort() {
+  const a = S.arr, n = a.length, cols = Math.max(...a);
+  const g = Array.from({ length: n }, () => Array(cols).fill(false));
+  S.bead = { grid: g, rows: n, cols, moved: [] };
+  for (let r = 0; r < n; r++) {                       // 1) put each value on its row as beads
+    for (let c = 0; c < a[r]; c++) g[r][c] = true;
+    S.hi = [r];
+    S.caption = `Row ${r + 1}: place ${a[r]} bead${a[r] > 1 ? 's' : ''}`;
+    yield;
+  }
+  S.hi = [];
+  while (true) {                                      // 2) let gravity pull beads down the rods
+    const moves = [];
+    for (let c = 0; c < cols; c++)
+      for (let r = 0; r < n - 1; r++)
+        if (g[r][c] && !g[r + 1][c]) moves.push([r, c]);
+    if (!moves.length) break;
+    for (const [r, c] of moves) g[r][c] = false;
+    for (const [r, c] of moves) g[r + 1][c] = true;
+    S.bead.moved = moves.map(([r, c]) => [r + 1, c]);
+    S.caption = 'Gravity: beads fall one step down their rods';
+    yield;
+  }
+  S.bead.moved = [];
+  for (let r = 0; r < n; r++) a[r] = g[r].filter(Boolean).length;   // 3) read the rows
+  S.hi = allIdx(a);
+  S.caption = 'Count the beads on each row, top to bottom: sorted!';
+  yield;
+}
+
+/* ---- Bogo Sort (permutation variant from the md file) ---- */
+function permutation(a, left, right) {
+  let result = [];
+  if (left === right) {
+    result.push(a.slice());
+  } else {
+    for (let i = left; i <= right; i++) {
+      swap(a, left, i);
+      result = result.concat(permutation(a, left + 1, right));
+      swap(a, left, i);                                 // backtrack
+    }
+  }
+  return result;
+}
+function* bogoSort() {
+  const a = S.arr, n = a.length;
+  S.bogo = { log: [] };
+  if (isSorted(a)) { S.caption = 'Already sorted: Bogo Sort stops immediately.'; yield; return; }
+  const sortedKey = a.slice().sort((x, y) => x - y).join(',');
+  const seen = new Set([sortedKey]);
+  let tries = [];
+  if (n <= 8) {                                          // enumerate every permutation, as in the md file
+    const pool = [];
+    for (const p of permutation(a.slice(), 0, n - 1)) {
+      const k = p.join(',');
+      if (!seen.has(k)) { seen.add(k); pool.push(p); }
+    }
+    tries = shuffled(pool).slice(0, 10);
+  } else {                                               // too many permutations to list: sample random ones
+    let guard = 0;
+    while (tries.length < 10 && guard++ < 5000) {
+      const p = shuffled(a), k = p.join(',');
+      if (!seen.has(k)) { seen.add(k); tries.push(p); }
+    }
+  }
+  for (let t = 0; t < tries.length; t++) {              // random permutations that are NOT sorted
+    for (let i = 0; i < n; i++) a[i] = tries[t][i];
+    S.hi = allIdx(a);
+    S.bogo.log.push({ seq: a.slice(), ok: false });
+    S.caption = `Attempt ${t + 1}: random permutation. is_sorted? No`;
+    yield;
+  }
+  const sorted = a.slice().sort((x, y) => x - y);        // the lucky attempt
+  for (let i = 0; i < n; i++) a[i] = sorted[i];
+  S.hi = allIdx(a);
+  S.bogo.log.push({ seq: sorted, ok: true });
+  S.caption = `Attempt ${tries.length + 1}: is_sorted? Yes!`;
+  yield;
+}
+
+/* ---- Bubble Sort ---- */
+function* bubbleSort() {
+  const a = S.arr, n = a.length;
+  for (let i = 1; i < n; i++) {
+    let sorted = true;
+    for (let j = 0; j < n - i; j++) {
+      S.hi = [j, j + 1];
+      S.caption = `Compare ${a[j]} and ${a[j + 1]}`;
+      yield;
+      if (a[j] > a[j + 1]) {
+        swap(a, j, j + 1);
+        sorted = false;
+        S.caption = `Swap: ${a[j + 1]} > ${a[j]}`;
+        yield;
+      }
+    }
+    if (sorted) break;
+  }
+}
+
+/* ---- Cocktail Sort ---- */
+function* cocktailSort() {
+  const a = S.arr, n = a.length;
+  for (let i = n - 1; i > 0; i--) {
+    let swapped = false;
+    for (let j = i; j > 0; j--) {                        // right to left
+      S.hi = [j - 1, j];
+      S.caption = `Right to left: compare ${a[j - 1]} and ${a[j]}`;
+      yield;
+      if (a[j] < a[j - 1]) { swap(a, j, j - 1); swapped = true; S.caption = 'Swap'; yield; }
+    }
+    for (let j = 0; j < i; j++) {                        // left to right
+      S.hi = [j, j + 1];
+      S.caption = `Left to right: compare ${a[j]} and ${a[j + 1]}`;
+      yield;
+      if (a[j] > a[j + 1]) { swap(a, j, j + 1); swapped = true; S.caption = 'Swap'; yield; }
+    }
+    if (!swapped) return;
+  }
+}
+
+/* ---- Comb Sort ---- */
+function* combSort() {
+  const a = S.arr, n = a.length;
+  let gap = n, sorted = false;
+  while (gap !== 1 || !sorted) {
+    gap = Math.floor(gap / 1.3);                         // shrink factor 1.3
+    if (gap <= 1) gap = 1;
+    sorted = true;
+    for (let i = 0; i < n - gap; i++) {
+      S.hi = [i, i + gap];
+      S.caption = `Gap ${gap}: compare ${a[i]} and ${a[i + gap]}`;
+      yield;
+      if (a[i] > a[i + gap]) { swap(a, i, i + gap); sorted = false; S.caption = `Gap ${gap}: swap`; yield; }
+    }
+  }
+}
+
+/* ---- Counting Sort (count array + position array) ---- */
+function* countingSort() {
+  const a = S.arr, n = a.length, maxv = Math.max(...a);
+  const count = Array(maxv).fill(0);                     // count[v - 1] belongs to value v
+  S.count = count; S.countHi = [];
+  S.countLabel = 'Count array: how many times each value appears (index = value)';
+  S.aux = Array(n).fill(null);
+  S.auxLabel = 'Position array (output)';
+  for (let idx = 0; idx < n; idx++) {                    // 1) count occurrences
+    const v = a[idx];
+    count[v - 1]++;
+    S.hi = [idx]; S.countHi = [v - 1];
+    S.caption = `Count ${v}: it has appeared ${count[v - 1]} time${count[v - 1] > 1 ? 's' : ''}`;
+    yield;
+  }
+  S.hi = [];
+  S.countLabel = 'Count array: running totals (index = value), each shows how many values are \u2264 it';
+  for (let j = 1; j < count.length; j++) {               // 2) prefix sums
+    const changes = count[j - 1] > 0;
+    count[j] += count[j - 1];
+    S.countHi = [j - 1, j];
+    S.caption = `Prefix sum: ${count[j]} value${count[j] === 1 ? ' is' : 's are'} \u2264 ${j + 1}`;
+    yield changes ? 1 : 0.2;                             // steps that change nothing go by faster
+  }
+  S.countLabel = 'Count array: the next free position for each value (counts down as values are placed)';
+  for (let k = n - 1; k >= 0; k--) {                     // 3) place, right to left (stable)
+    const v = a[k], c = count[v - 1], pos = c - 1;
+    S.aux[pos] = v;
+    count[v - 1]--;
+    S.hi = [k]; S.countHi = [v - 1]; S.auxHi = [pos];
+    S.caption = `Place ${v}: ${c} value${c === 1 ? ' is' : 's are'} \u2264 ${v}, so it goes to position ${pos}; its count drops to ${c - 1}`;
+    yield;
+  }
+  for (let i = 0; i < n; i++) a[i] = S.aux[i];           // 4) copy back
+  S.aux = null; S.auxHi = []; S.countHi = [];
+  S.hi = allIdx(a);
+  S.caption = 'Copy the position array back';
+  yield;
+}
+
+/* ---- Heap Sort (max-heap stored in the array, drawn as a tree) ---- */
+function* heapSort() {
+  const a = S.arr, n = a.length;
+  S.heapSize = n;
+  S.caption = 'Build a max-heap: sift down every parent, starting from the last one';
+  yield;
+  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) yield* siftDown(i, n, 'Build heap');
+  for (let end = n - 1; end > 0; end--) {
+    swap(a, 0, end);                                     // the root is the max: move it to the end
+    S.hi = [0, end];
+    S.heapSize = end;
+    S.caption = `Move the max ${a[end]} to position ${end}; the heap shrinks`;
+    yield;
+    yield* siftDown(0, end, 'Restore heap');
+  }
+  S.hi = []; S.heapSize = n;
+  S.caption = 'Heap emptied: the array is sorted';
+  yield;
+}
+function* siftDown(i, size, phase) {
+  const a = S.arr;
+  while (true) {
+    const l = 2 * i + 1, r = 2 * i + 2;
+    if (l >= size) return;                               // no children: nothing to do
+    let largest = i;
+    if (a[l] > a[largest]) largest = l;
+    if (r < size && a[r] > a[largest]) largest = r;
+    S.hi = r < size ? [i, l, r] : [i, l];
+    S.caption = `${phase}: compare parent ${a[i]} with its child${r < size ? 'ren' : ''} ${a[l]}${r < size ? ' and ' + a[r] : ''}`;
+    yield;
+    if (largest === i) return;                           // parent is already the largest
+    swap(a, i, largest);
+    S.hi = [i, largest];
+    S.caption = `Swap parent ${a[largest]} with the larger child ${a[i]}`;
+    yield;
+    i = largest;
+  }
+}
+
+/* ---- Insertion Sort ---- */
+function* insertionSort() {
+  const a = S.arr, n = a.length;
+  for (let right = 1; right < n; right++) {
+    const temp = a[right];
+    let left = right - 1;
+    S.hi = [right];
+    S.caption = `Key = ${temp}: insert it into the sorted part on its left`;
+    yield;
+    while (left >= 0) {
+      S.hi = [left];
+      S.caption = `Is ${a[left]} > key ${temp}?`;
+      yield;
+      if (a[left] > temp) {
+        a[left + 1] = a[left];
+        S.hi = [left, left + 1];
+        S.caption = `Yes: shift ${a[left]} to the right`;
+        yield;
+        left--;
+      } else break;
+    }
+    a[left + 1] = temp;
+    S.hi = [left + 1];
+    S.caption = `Insert key ${temp} at position ${left + 1}`;
+    yield;
+  }
+}
+
+/* ---- Merge Sort ---- */
+function* mergeSort() { yield* mergeRange(0, S.arr.length - 1); }
+function* mergeRange(lo, hi) {
+  if (hi - lo < 1) return;                               // 0 or 1 element
+  const mid = Math.floor((lo + hi) / 2);
+  yield* mergeRange(lo, mid);
+  yield* mergeRange(mid + 1, hi);
+  yield* mergeHalves(lo, mid, hi);
+}
+function* mergeHalves(lo, mid, hi) {
+  const a = S.arr;
+  const left = a.slice(lo, mid + 1), right = a.slice(mid + 1, hi + 1);
+  const tag = `[${left.join(', ')}] + [${right.join(', ')}]`;
+  let i = 0, j = 0, k = lo;
+  while (i < left.length && j < right.length) {
+    if (left[i] < right[j]) {
+      a[k] = left[i]; S.hi = [k]; S.caption = `Merge ${tag}: ${left[i]} < ${right[j]}, take ${left[i]}`; i++; k++;
+    } else if (right[j] < left[i]) {
+      a[k] = right[j]; S.hi = [k]; S.caption = `Merge ${tag}: ${right[j]} < ${left[i]}, take ${right[j]}`; j++; k++;
+    } else {
+      a[k] = left[i]; a[k + 1] = right[j]; S.hi = [k, k + 1];
+      S.caption = `Merge ${tag}: equal values, take both`; i++; j++; k += 2;
+    }
+    yield;
+  }
+  while (i < left.length) { a[k] = left[i]; S.hi = [k]; S.caption = `Merge ${tag}: copy rest of left half`; i++; k++; yield; }
+  while (j < right.length) { a[k] = right[j]; S.hi = [k]; S.caption = `Merge ${tag}: copy rest of right half`; j++; k++; yield; }
+}
+
+/* ---- Odd Even Sort ---- */
+function* oddEvenSort() {
+  const a = S.arr, n = a.length;
+  for (let i = 0; i < n; i++) {
+    let sorted = true;
+    for (let j = 1; j < n - 1; j += 2) {                 // odd-indexed pairs
+      S.hi = [j, j + 1];
+      S.caption = `Odd phase: compare ${a[j]} and ${a[j + 1]}`;
+      yield;
+      if (a[j] > a[j + 1]) { swap(a, j, j + 1); sorted = false; S.caption = 'Odd phase: swap'; yield; }
+    }
+    for (let j = 0; j < n - 1; j += 2) {                 // even-indexed pairs
+      S.hi = [j, j + 1];
+      S.caption = `Even phase: compare ${a[j]} and ${a[j + 1]}`;
+      yield;
+      if (a[j] > a[j + 1]) { swap(a, j, j + 1); sorted = false; S.caption = 'Even phase: swap'; yield; }
+    }
+    if (sorted) break;
+  }
+}
+
+/* ---- Pigeonhole Sort ---- */
+function* pigeonholeSort() {
+  const a = S.arr, n = a.length;
+  const mn = Math.min(...a), mx = Math.max(...a), size = mx - mn + 1;   // size of range = max - min + 1
+  const holes = Array.from({ length: size }, () => []);                  // each hole keeps the values dropped into it
+  S.holes = holes; S.holeMin = mn;
+  for (let idx = 0; idx < n; idx++) {                                    // drop every value into its pigeonhole
+    const h = a[idx] - mn;
+    holes[h].push(a[idx]);
+    S.hi = [idx]; S.hhi = h;
+    S.caption = `${a[idx]} goes into pigeonhole ${h} (value - min = ${a[idx]} - ${mn})`;
+    yield;
+  }
+  S.hi = [];
+  let i = 0;
+  for (let count = 0; count < size; count++) {                           // walk the holes in order
+    while (holes[count].length > 0) {
+      const v = holes[count].shift();
+      a[i] = v;
+      S.hi = [i]; S.hhi = count;
+      S.caption = `Walk the holes in order: take ${v} from pigeonhole ${count} and write it to position ${i}`;
+      yield;
+      i++;
+    }
+  }
+  S.hhi = -1;
+}
+
+/* ---- Quick Sort (Lomuto partition, in place on index ranges) ---- */
+function* quickSort() { yield* quickRange(0, S.arr.length - 1); }
+function* quickRange(low, high) {
+  if (low < high) {
+    const pos = yield* partition(low, high);
+    yield* quickRange(low, pos - 1);
+    yield* quickRange(pos + 1, high);
+  }
+}
+function* partition(low, high) {
+  const a = S.arr, pivot = a[high];
+  let i = low - 1;                                       // right position of pivot found so far
+  S.mark = [high]; S.hi = [high];
+  S.caption = `Pivot = ${pivot} (range ${low} to ${high})`;
+  yield;
+  for (let j = low; j < high; j++) {
+    S.hi = [j, high]; S.mark = [high];
+    S.caption = `Is ${a[j]} < pivot ${pivot}?`;
+    yield;
+    if (a[j] < pivot) {
+      i++;
+      if (i !== j) { swap(a, i, j); S.hi = [i, j]; S.caption = `Yes: swap ${a[j]} and ${a[i]}`; yield; }
+    }
+  }
+  swap(a, i + 1, high);
+  S.mark = [i + 1]; S.hi = [i + 1];
+  S.caption = `Pivot ${pivot} lands in its final position ${i + 1}`;
+  yield;
+  S.mark = [];
+  return i + 1;
+}
+
+/* ---- Radix Sort (LSD, ten buckets) ---- */
+function* radixSort() {
+  const a = S.arr, n = a.length;
+  let placement = 1, pass = 0;
+  while (a.some(v => Math.floor(v / placement) > 0)) {   // stop when no value has this digit
+    pass++;
+    const buckets = Array.from({ length: 10 }, () => []);
+    S.buckets = buckets;
+    S.passLabel = `Pass ${pass}: sorting by the digit in the ${placement}s place`;
+    for (let idx = 0; idx < n; idx++) {                  // distribute
+      const v = a[idx], digit = Math.floor(v / placement) % 10;
+      buckets[digit].push(v);
+      S.hi = [idx]; S.bhi = digit;
+      S.caption = `${v}: digit ${digit}, so it goes into bucket ${digit}`;
+      yield;
+    }
+    S.hi = [];
+    let v = 0;
+    for (let b = 0; b < 10; b++) {                       // collect
+      for (const x of buckets[b].slice()) {
+        a[v] = x;
+        buckets[b].shift();
+        S.hi = [v]; S.bhi = b;
+        S.caption = `Collect ${x} from bucket ${b} into position ${v}`;
+        v++;
+        yield;
+      }
+    }
+    S.bhi = -1;
+    placement *= 10;
+  }
+  S.passLabel = `Finished after ${pass} pass${pass > 1 ? 'es' : ''}`;
+}
+
+/* ---- Selection Sort ---- */
+function* selectionSort() {
+  const a = S.arr, n = a.length;
+  for (let i = 0; i < n - 1; i++) {
+    let flag = i;                                        // index of the minimum found so far
+    for (let j = i + 1; j < n; j++) {
+      S.hi = [j]; S.mark = [flag];
+      S.caption = `Is ${a[j]} < current minimum ${a[flag]}?`;
+      yield;
+      if (a[j] < a[flag]) flag = j;
+    }
+    if (flag !== i) {
+      swap(a, i, flag);
+      S.hi = [i, flag]; S.mark = [];
+      S.caption = `Swap the minimum ${a[i]} into position ${i}`;
+      yield;
+    }
+  }
+  S.mark = [];
+}
+
+/* ---- Shell Sort ---- */
+function* shellSort() {
+  const a = S.arr, n = a.length;
+  let interval = Math.floor(n / 2);
+  while (interval > 0) {
+    for (let i = interval; i < n; i++) {
+      const temp = a[i];
+      let j = i;
+      while (j >= interval) {
+        S.hi = [j - interval, j];
+        S.caption = `Interval ${interval}: is ${a[j - interval]} > ${temp}?`;
+        yield;
+        if (a[j - interval] > temp) {
+          a[j] = a[j - interval];
+          S.caption = `Interval ${interval}: shift ${a[j]} forward`;
+          yield;
+          j -= interval;
+        } else break;
+      }
+      a[j] = temp;
+      S.hi = [j];
+      S.caption = `Interval ${interval}: drop ${temp} at position ${j}`;
+      yield;
+    }
+    interval = Math.floor(interval / 2);
+  }
+}
+
+/* ---- Sleep Sort (virtual clock: 1 tick = 1 second) ---- */
+function* sleepSort() {
+  const a = S.arr, n = a.length, mx = Math.max(...a);
+  S.aux = Array(n).fill(null);
+  S.auxLabel = 'sorted_array (output)';
+  let cnt = 0, pending = [];
+  for (let t = 0; t <= mx; t++) {
+    for (const j of pending) a[j] = null;                // threads that already woke up
+    pending = [];
+    S.clock = t; S.hi = []; S.auxHi = [];
+    S.caption = `Sleep for ${t} seconds`;
+    let fired = false;
+    for (let j = 0; j < n; j++) {
+      if (a[j] === t) {
+        fired = true;
+        S.aux[cnt] = a[j];
+        S.auxHi = [cnt]; S.hi = [j];
+        cnt++;
+        pending.push(j);
+        S.caption = `${t} seconds: the thread for ${t} wakes up and appends it`;
+        yield;
+      }
+    }
+    if (!fired) yield 0.3;                               // quiet seconds tick by faster
+  }
+  for (let i = 0; i < n; i++) a[i] = S.aux[i];
+  S.aux = null; S.auxHi = [];
+}
+
+/* ---------------- registry (alphabetical) ---------------- */
+const ALGOS = [
+  { key: 'bead',      name: 'Bead Sort',      view: 'bead',  fn: beadSort,      time: 'O(S), S = sum of the values (total beads)', space: 'O(n × max)' },
+  { key: 'bogo',      name: 'Bogo Sort',      view: 'bogo',  fn: bogoSort,      time: 'Somewhat O(n!) or O(n!²)', space: 'O(n · n!), all permutations are stored' },
+  { key: 'bubble',    name: 'Bubble Sort',    view: 'none',  fn: bubbleSort,    time: 'O(n²)', space: 'O(1)' },
+  { key: 'cocktail',  name: 'Cocktail Sort',  view: 'none',  fn: cocktailSort,  time: 'O(n²)', space: 'O(1)' },
+  { key: 'comb',      name: 'Comb Sort',      view: 'none',  fn: combSort,      time: 'O(n²) worst case', space: 'O(1)' },
+  { key: 'counting',  name: 'Counting Sort',  view: 'counting',  fn: countingSort,  time: 'O(n + k)', space: 'O(k)' },
+  { key: 'heap',      name: 'Heap Sort',      view: 'heap',  fn: heapSort,      time: 'O(n log n)', space: 'O(1)' },
+  { key: 'insertion', name: 'Insertion Sort', view: 'none',  fn: insertionSort, time: 'O(n²)', space: 'O(1)' },
+  { key: 'merge',     name: 'Merge Sort',     view: 'none',  fn: mergeSort,     time: 'O(n log n)', space: 'O(n)' },
+  { key: 'oddeven',   name: 'Odd Even Sort',  view: 'none',  fn: oddEvenSort,   time: 'O(n²)', space: 'O(1)' },
+  { key: 'pigeonhole',name: 'Pigeonhole Sort',view: 'pigeonhole',  fn: pigeonholeSort,time: 'O(n + range)', space: 'O(range)' },
+  { key: 'quick',     name: 'Quick Sort',     view: 'none',  fn: quickSort,     time: 'O(n²) worst case, O(n log n) on average', space: 'O(log n) recursion stack' },
+  { key: 'radix',     name: 'Radix Sort',     view: 'radix', fn: radixSort,     time: 'O(n · d)', space: 'O(n · d)' },
+  { key: 'selection', name: 'Selection Sort', view: 'none',  fn: selectionSort, time: 'O(n²)', space: 'O(1)' },
+  { key: 'shell',     name: 'Shell Sort',     view: 'none',  fn: shellSort,     time: 'O(n²)', space: 'O(1)' },
+  { key: 'sleep',     name: 'Sleep Sort',     view: 'sleep', fn: sleepSort,     time: 'Somewhat O(max(array) + n)', space: 'O(n)' }
+];
+
+/* =====================================================================
+   RENDERING
+   ===================================================================== */
+function cellsHTML(arr, hi, mark, done, minH, rangeH) {
+  const hiSet = new Set(hi), markSet = new Set(mark);
+  return arr.map((v, i) => {
+    const empty = v === null;
+    const h = empty ? 44 : Math.round(minH + (v / R.vmax) * rangeH);
+    let cls = empty ? 'empty' : hiSet.has(i) ? 'hi' : done ? 'done' : '';
+    if (markSet.has(i)) cls += ' mark';
+    return `<div class="cell"><div class="bar ${cls}" style="height:${h}px">${empty ? '' : v}</div><div class="idx">${i}</div></div>`;
+  }).join('');
+}
+
+function beadSVG() {
+  const B = R.bead, rows = B.rows, cols = B.cols;
+  const cw = 18, rh = 24, left = 40, pad = 14;
+  const W = left + cols * cw + pad, H = pad * 2 + rows * rh;
+  const moved = new Set(B.moved.map(([r, c]) => r * 1000 + c));
+  let s = `<svg class="abacus" viewBox="0 0 ${W} ${H}" style="max-width:${Math.round(W * 1.6)}px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Abacus of beads">`;
+  s += `<rect x="${left - 6}" y="${pad - 8}" width="${cols * cw + 12}" height="${rows * rh + 16}" rx="8" fill="#fff" stroke="#1f3a6e" stroke-width="2.5"/>`;
+  for (let c = 0; c < cols; c++) {
+    const x = left + c * cw + cw / 2;
+    s += `<line x1="${x}" y1="${pad - 6}" x2="${x}" y2="${pad + rows * rh + 6}" stroke="#b9c2d3" stroke-width="2"/>`;
+  }
+  for (let r = 0; r < rows; r++) {
+    let cnt = 0;
+    for (let c = 0; c < cols; c++) {
+      if (!B.grid[r][c]) continue;
+      cnt++;
+      const fill = moved.has(r * 1000 + c) ? '#ffd9a0' : R.done ? '#add8e6' : '#1f3a6e';
+      const stroke = moved.has(r * 1000 + c) ? '#c98a2b' : '#1f3a6e';
+      s += `<circle cx="${left + c * cw + cw / 2}" cy="${pad + r * rh + rh / 2}" r="${cw / 2 - 2}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+    }
+    s += `<text x="${left - 14}" y="${pad + r * rh + rh / 2 + 4}" text-anchor="end" font-size="12" font-weight="700" fill="#1f3a6e">${cnt}</text>`;
+  }
+  s += `</svg>`;
+  return s;
+}
+
+function heapSVG() {
+  const n = R.heapSize, N = R.arr.length;
+  if (n <= 0) return '';
+  const L = Math.floor(Math.log2(N)) + 1;                // levels of the full tree (keeps the layout steady as it shrinks)
+  const slotW = 40, rowH = 54, rad = 16, pad = 8;
+  const W = Math.pow(2, L - 1) * slotW, H = (L - 1) * rowH + 2 * (rad + pad);
+  const pos = i => {
+    const lvl = Math.floor(Math.log2(i + 1)), p = i - (Math.pow(2, lvl) - 1);
+    return { x: (p + 0.5) * W / Math.pow(2, lvl), y: pad + rad + lvl * rowH };
+  };
+  const hiSet = new Set(R.hi);
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="max-width:${Math.round(W * 1.5)}px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Heap drawn as a binary tree">`;
+  for (let i = 1; i < n; i++) {                          // edges first, so nodes sit on top
+    const c = pos(i), p = pos(Math.floor((i - 1) / 2));
+    s += `<line x1="${p.x}" y1="${p.y}" x2="${c.x}" y2="${c.y}" stroke="#b9c2d3" stroke-width="2"/>`;
+  }
+  for (let i = 0; i < n; i++) {
+    const { x, y } = pos(i);
+    const isHi = hiSet.has(i);
+    const fill = isHi ? '#ffd9a0' : R.done ? '#add8e6' : '#1f3a6e';
+    const text = isHi ? '#5a3500' : R.done ? '#0f3a4d' : '#ffffff';
+    const stroke = isHi ? '#c98a2b' : '#1f3a6e';
+    s += `<circle cx="${x}" cy="${y}" r="${rad}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+    s += `<text x="${x}" y="${y + 4.5}" text-anchor="middle" font-size="13" font-weight="700" fill="${text}">${R.arr[i]}</text>`;
+    s += `<text x="${x + rad - 2}" y="${y - rad + 4}" font-size="9" fill="#6b7280">${i}</text>`;
+  }
+  return s + `</svg>`;
+}
+
+function countHTML() {
+  const hiSet = new Set(R.countHi || []);
+  return R.count.map((c, i) =>
+    `<div class="cc"><div class="cbox${hiSet.has(i) ? ' hi' : c === 0 ? ' zero' : ''}">${c}</div><div class="idx">${i + 1}</div></div>`
+  ).join('');
+}
+
+function viewHTML() {
+  if (R.view === 'bead') return beadSVG();
+  if (R.view === 'radix') {
+    return `<div class="passlabel">${R.passLabel || 'Ten buckets, one for each digit 0 to 9'}</div><div class="buckets">` +
+      R.buckets.map((b, i) =>
+        `<div><div class="bucket${R.bhi === i ? ' hi' : ''}">${b.map(v => `<span class="chip">${v}</span>`).join('')}</div><div class="blabel">${i}</div></div>`
+      ).join('') + `</div>`;
+  }
+  if (R.view === 'pigeonhole') {
+    const H = R.holes, size = H.length;
+    const cols = Math.min(4, Math.max(1, Math.ceil(size / 8)));
+    const rows = Math.ceil(size / cols);
+    return `<div class="passlabel">${size} pigeonholes: hole i holds the value i + ${R.holeMin} (min = ${R.holeMin})</div>` +
+      `<div class="holes" style="grid-template-rows:repeat(${rows},auto);grid-template-columns:repeat(${cols},1fr)">` +
+      H.map((vals, i) =>
+        `<div class="hole${R.hhi === i ? ' hi' : ''}"><div class="hidx">${i}</div><div class="hslot">${vals.map(v => `<span>${v}</span>`).join('')}</div></div>`
+      ).join('') + `</div>`;
+  }
+  if (R.view === 'sleep') {
+    const t = R.clock, p = x => String(x).padStart(2, '0');
+    const clk = `${p(Math.floor(t / 3600))}:${p(Math.floor(t / 60) % 60)}:${p(t % 60)}`;
+    return `<div class="clockwrap"><div class="clock">${clk}</div><div class="clocknote">Digital timer (1 tick = 1 second). Each value sleeps for its own number of seconds.</div></div>`;
+  }
+  if (R.view === 'bogo') {
+    if (!R.bogo.log.length) return `<div class="placeholder">Each permutation tried will be listed here.</div>`;
+    return `<div class="bogolog">` + R.bogo.log.map((e, i) =>
+      `<div class="bl ${e.ok ? 'ok' : 'no'}"><span>#${i + 1}</span><span>[${e.seq.join(', ')}]</span><span>${e.ok ? 'sorted ✓' : 'not sorted ✗'}</span></div>`
+    ).join('') + `</div>`;
+  }
+  return '';
+}
+
+function render() {
+  R = started ? history[pos].state : S;   // show the chosen snapshot (or the fresh state before a session)
+  $('caption').textContent = R.caption;
+  $('heapWrap').style.display = R.view === 'heap' ? '' : 'none';
+  if (R.view === 'heap') $('heap').innerHTML = heapSVG();
+  $('arr').innerHTML = cellsHTML(R.arr, R.hi, R.mark, R.done, 30, 165);
+  if (R.count) {
+    $('countWrap').style.display = '';
+    $('countLabel').textContent = R.countLabel;
+    $('counts').innerHTML = countHTML();
+  } else {
+    $('countWrap').style.display = 'none';
+  }
+  if (R.aux) {
+    $('auxWrap').style.display = '';
+    $('auxLabel').textContent = R.auxLabel;
+    $('aux').innerHTML = cellsHTML(R.aux, R.auxHi, [], R.done, 22, 80);
+  } else {
+    $('auxWrap').style.display = 'none';
+  }
+  $('view').innerHTML = viewHTML();
+  $('view').style.display = (R.view === 'none' || R.view === 'heap' || R.view === 'counting') ? 'none' : '';
+}
+
+/* =====================================================================
+   RUNNER + UI
+   Every step is recorded as a snapshot, so the user can go back and forth.
+   ===================================================================== */
+let history = [], pos = 0, gen = null, genDone = false, started = false, playing = false, playToken = 0;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const delayMs = () => Math.round(1000 / Math.pow(Number($('speed').value), 1.25));
+const snap = mult => ({ state: JSON.parse(JSON.stringify(S)), mult });
+const atEnd = () => started && genDone && pos === history.length - 1;
+
+function startSession() {
+  playToken++; playing = false;
+  freshState();
+  gen = ALGOS.find(a => a.key === $('algo').value).fn();
+  history = [snap(1)]; pos = 0; genDone = false; started = true;
+}
+
+// Move one step forward: replay a recorded step, or run the generator one more step.
+// Returns the step's delay multiplier, or -1 when there is nothing further.
+function advance() {
+  if (pos < history.length - 1) { pos++; return history[pos].mult; }
+  if (genDone) return -1;
+  const r = gen.next();
+  if (r.done) {
+    S.hi = []; S.mark = []; S.auxHi = []; S.bhi = -1;
+    if (S.bead) S.bead.moved = [];
+    S.done = true;
+    S.caption = 'Sorted!';
+    genDone = true;
+    history.push(snap(1));
+  } else {
+    history.push(snap(typeof r.value === 'number' ? r.value : 1));
+  }
+  pos = history.length - 1;
+  return history[pos].mult;
+}
+
+function pausePlay() { playToken++; playing = false; }
+
+async function play() {
+  const my = ++playToken;
+  playing = true;
+  syncUI();
+  while (my === playToken) {
+    const mult = advance();
+    if (mult < 0) break;
+    render();
+    if (atEnd()) break;
+    syncUI();
+    await wait(delayMs() * mult);
+  }
+  if (my === playToken) playing = false;
+  syncUI();
+}
+
+function syncUI() {
+  const inProgress = started && !genDone;
+  const remaining = started && !atEnd();
+  $('run').disabled = inProgress;
+  $('prev').disabled = !(started && pos > 0);
+  $('next').disabled = atEnd();
+  $('pause').disabled = !remaining;
+  $('pause').textContent = (!playing && remaining) ? 'Resume' : 'Pause';
+  for (const id of ['vals', 'setBtn', 'randBtn', 'algo']) $(id).disabled = inProgress;
+}
+
+function run() {
+  if (started && !genDone) return;
+  startSession();
+  render();
+  play();
+}
+
+function reset() {
+  playToken++; playing = false;
+  started = false; gen = null; genDone = false; history = []; pos = 0;
+  freshState();
+  render();
+  syncUI();
+}
+
+function stepBack() {
+  pausePlay();
+  if (started && pos > 0) { pos--; render(); }
+  syncUI();
+}
+
+function stepForward() {
+  pausePlay();
+  if (!started) startSession();
+  if (advance() >= 0) render();
+  syncUI();
+}
+
+function parseEntry(text) {
+  const cleaned = text.replace(/[\[\]]/g, ' ').trim();
+  if (!cleaned) return { error: 'Enter some values, e.g. 23, 47, 20, 63, 15.' };
+  const parts = cleaned.split(/[\s,;]+/).filter(Boolean);
+  if (parts.some(p => !/^\d+$/.test(p))) return { error: 'Use whole numbers separated by commas.' };
+  const nums = parts.map(Number);
+  if (nums.length < MIN_LEN || nums.length > MAX_LEN) return { error: `Enter between ${MIN_LEN} and ${MAX_LEN} values.` };
+  if (nums.some(n => n < MIN_VAL || n > MAX_VAL)) return { error: `Each value must be between ${MIN_VAL} and ${MAX_VAL}.` };
+  return { values: nums };
+}
+
+function applyEntry() {
+  const res = parseEntry($('vals').value);
+  if (res.error) { $('err').textContent = res.error; return; }
+  $('err').textContent = '';
+  entry = res.values;
+  $('vals').value = '[' + entry.join(', ') + ']';
+  reset();
+}
+
+function randomEntry() {
+  const n = 5 + Math.floor(Math.random() * 4);           // 5 to 8 values
+  const pool = new Set();
+  while (pool.size < n) pool.add(MIN_VAL + Math.floor(Math.random() * (MAX_VAL - MIN_VAL + 1)));
+  $('vals').value = '[' + shuffled([...pool]).join(', ') + ']';
+  applyEntry();
+}
+
+function showInfo() {
+  const a = ALGOS.find(x => x.key === $('algo').value);
+  $('info').textContent = `${a.name}  |  Time: ${a.time}  |  Space: ${a.space}`;
+}
+
+/* ---------------- init ---------------- */
+for (const a of ALGOS) {
+  const o = document.createElement('option');
+  o.value = a.key; o.textContent = a.name;
+  $('algo').appendChild(o);
+}
+$('algo').addEventListener('change', () => { showInfo(); reset(); });
+$('run').addEventListener('click', run);
+$('pause').addEventListener('click', () => {
+  if (playing) { pausePlay(); syncUI(); }
+  else if (started && !atEnd()) play();
+});
+$('prev').addEventListener('click', stepBack);
+$('next').addEventListener('click', stepForward);
+$('reset').addEventListener('click', reset);
+$('setBtn').addEventListener('click', applyEntry);
+$('randBtn').addEventListener('click', randomEntry);
+$('vals').addEventListener('keydown', e => { if (e.key === 'Enter') applyEntry(); });
+
+showInfo();
+freshState();
+render();
+syncUI();
+</script>
+</body>
+</html>
