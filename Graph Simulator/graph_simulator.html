@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Graph Data Structure Simulator</title>
+<style>
+:root{--bd:#e5e7eb;--tx:#111827;--mut:#6b7280;--pri:#2563eb;--bg2:#f9fafb;--ok:#16a34a;--warn:#f59e0b;--bad:#dc2626}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:#fff;color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,select,input{font:inherit;color:inherit}
+button{border:1px solid #d1d5db;background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}
+button:hover:not(:disabled){background:#f3f4f6}
+button:focus-visible{box-shadow:0 0 0 2px #93c5fd}
+button:disabled{opacity:.4;cursor:default}
+button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+button.pri:hover:not(:disabled){background:#1d4ed8}
+button.danger{color:var(--bad)}
+select,input[type=number]{border:1px solid #d1d5db;border-radius:6px;padding:4px 6px;background:#fff;min-width:0}
+input[type=number]{width:64px}
+h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.2px}
+h2{font-size:11.5px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);font-weight:700}
+.mut{color:var(--mut)}
+.note{font-size:12px;color:var(--mut);margin:4px 0 0}
+
+#app{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr);
+  grid-template-areas:"top top top" "left center right";height:100vh}
+#top{grid-area:top;display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:10px 14px;border-bottom:1px solid var(--bd)}
+#top .grp{display:flex;align-items:center;gap:8px}
+#left{grid-area:left;display:flex;flex-direction:column;gap:10px;padding:10px;min-height:0;border-right:1px solid var(--bd)}
+#center{grid-area:center;display:flex;flex-direction:column;gap:8px;padding:10px;min-width:0;min-height:0}
+#right{grid-area:right;overflow:auto;padding:10px;border-left:1px solid var(--bd);display:flex;flex-direction:column;gap:10px}
+.card{border:1px solid var(--bd);border-radius:10px;padding:10px 12px;background:#fff}
+
+.sw{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.sw input{position:absolute;opacity:0;pointer-events:none}
+.sw .track{width:36px;height:20px;border-radius:10px;background:#d1d5db;position:relative;transition:.15s}
+.sw .track::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sw input:checked+.track{background:var(--pri)}
+.sw input:checked+.track::after{left:18px}
+.sw input:focus-visible+.track{outline:2px solid #93c5fd}
+
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{border:1px solid var(--bd);border-radius:8px;padding:6px 10px;background:var(--bg2);display:flex;flex-direction:column}
+.stat .lbl{font-size:11px;color:var(--mut)}
+.stat .val{font-size:22px;font-weight:700;line-height:1.2}
+.stat .sm{font-size:11px;color:var(--mut)}
+.stat.wide{grid-column:1/-1}
+#sType{margin-top:8px;font-size:12px;color:var(--mut)}
+
+#matCard{flex:1;min-height:0;display:flex;flex-direction:column}
+#matHint{font-size:12px;color:var(--mut);margin:-2px 0 8px}
+#matWrap{flex:1;min-height:0;overflow:auto;border:1px solid var(--bd);border-radius:8px;position:relative}
+#matEmpty{padding:14px;color:var(--mut);font-size:13px}
+#mat{border-collapse:separate;border-spacing:0;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#mat th,#mat td{width:28px;min-width:28px;height:24px;text-align:center;padding:0;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+#mat thead th{position:sticky;top:0;background:#f3f4f6;z-index:2;color:#374151}
+#mat tbody th{position:sticky;left:0;background:#f3f4f6;z-index:1;color:#374151}
+#mat thead th.corner{left:0;z-index:3}
+#mat td{color:#c4c8d0;cursor:pointer}
+#mat td.on{color:#111827;background:#eff6ff;font-weight:700}
+#mat td.dg{background:repeating-linear-gradient(45deg,#fafafa,#fafafa 4px,#f0f0f0 4px,#f0f0f0 8px);cursor:default;color:#d1d5db}
+#mat td:not(.dg):hover{outline:2px solid #93c5fd;outline-offset:-2px}
+#mat td input{width:100%;height:100%;border:0;border-radius:0;padding:0;text-align:center;font:inherit;outline:2px solid var(--pri);outline-offset:-2px;-moz-appearance:textfield}
+#mat td input::-webkit-outer-spin-button,#mat td input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+#mat td.h-tree{background:#bbf7d0!important;color:#14532d}
+#mat td.h-cand{background:#fde68a!important;color:#78350f}
+#mat td.h-active{background:#fdba74!important;color:#7c2d12}
+#mat td.h-rej{background:#fecaca!important;color:#7f1d1d}
+#mat td.h-path{background:#93c5fd!important;color:#1e3a8a}
+
+#playbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+#playbar button{min-width:34px;padding:5px 8px}
+#playbar .sp{display:flex;align-items:center;gap:6px;margin-left:8px;color:var(--mut);font-size:12px}
+#stepNo{margin-left:auto;color:var(--mut);font-size:12px;font-variant-numeric:tabular-nums}
+#msg{min-height:38px;padding:8px 10px;border-left:4px solid var(--pri);background:#f8fafc;border-radius:4px;font-size:13.5px}
+#msg.ok{border-color:var(--ok);background:#f0fdf4}
+#msg.err{border-color:var(--bad);background:#fef2f2;color:#991b1b}
+#cvWrap{position:relative;flex:1 1 auto;min-height:240px;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:#fff}
+#cv{position:absolute;left:0;top:0;touch-action:none;outline:none}
+#legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--mut);align-items:center}
+#legend span{display:inline-flex;align-items:center;gap:5px}
+#legend i{width:12px;height:12px;border-radius:50%;border:2px solid;display:inline-block}
+#legend b.ln{width:18px;height:0;border-top:3px solid;display:inline-block}
+#legend .hint{margin-left:auto}
+#outCard{height:clamp(170px,30vh,330px);display:flex;flex-direction:column;min-height:0}
+#outCard h2{margin-bottom:6px}
+#panel{flex:1;min-height:0;overflow:auto;position:relative;font-size:13px}
+#panel .empty{color:var(--mut)}
+.kv{margin:2px 0 6px}
+.kv b{margin-right:4px}
+.chip{display:inline-block;min-width:22px;padding:0 6px;margin:1px;border:1px solid #d1d5db;border-radius:11px;text-align:center;background:var(--bg2);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.arr{color:#9ca3af;margin:0 2px}
+.tbl{border-collapse:collapse;font-size:12.5px;min-width:320px}
+.tbl th,.tbl td{border-bottom:1px solid #f0f0f0;padding:2px 10px;text-align:left}
+.tbl th{position:sticky;top:0;background:#f3f4f6;z-index:1}
+.tbl tr.acc td{background:#f0fdf4}
+.tbl tr.rej td{background:#fef2f2;color:#991b1b}
+.tbl tr.cur td{background:#fff7ed;font-weight:700}
+.tbl tr.pend td{color:#9ca3af}
+.fw{border-collapse:separate;border-spacing:0;font:11.5px ui-monospace,Menlo,Consolas,monospace}
+.fw th,.fw td{min-width:30px;height:22px;padding:0 3px;text-align:center;border-right:1px solid #f0f0f0;border-bottom:1px solid #f0f0f0}
+.fw thead th{position:sticky;top:0;background:#f3f4f6;z-index:2}
+.fw tbody th{position:sticky;left:0;background:#f3f4f6;z-index:1}
+.fw thead th:first-child{left:0;z-index:3}
+.fw td{cursor:pointer}
+.fw td.inf{color:#c4c8d0}
+.fw td.dg{background:#fafafa;color:#9ca3af}
+.fw td.piv{background:#fefce8}
+.fw td.chg{background:#fdba74;font-weight:700}
+.fw td.sel{outline:2px solid var(--pri);outline-offset:-2px;font-weight:700}
+.fw td:hover{outline:2px solid #93c5fd;outline-offset:-2px}
+
+.row{display:flex;align-items:center;gap:6px;margin:7px 0;flex-wrap:wrap}
+.row .k{width:54px;font-size:12px;color:var(--mut)}
+.row select{width:62px}
+.row .btns{display:flex;gap:6px}
+.lbl2{font-size:12px;color:var(--mut)}
+#basicCards,#advCards{display:flex;flex-direction:column;gap:10px}
+.seg{display:flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;flex:none}
+.seg button{flex:1;border:0;border-radius:0;background:#fff;padding:7px 10px;font-weight:600;color:var(--mut)}
+.seg button+button{border-left:1px solid #d1d5db}
+.seg button.on,.seg button.on:hover:not(:disabled){background:var(--pri);color:#fff}
+.chip.c{border-color:rgba(0,0,0,.25);color:#111827}
+
+@media (max-width:1100px){
+  #app{display:flex;flex-direction:column;height:auto}
+  #top{order:0}
+  #center{order:1;height:auto}
+  #cvWrap{flex:none;height:min(60vh,520px)}
+  #outCard{height:300px}
+  #right{order:2;border-left:0;border-top:1px solid var(--bd)}
+  #left{order:3;border-right:0;border-top:1px solid var(--bd)}
+  #matCard{flex:none;height:430px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <h1>Graph Data Structure Simulator</h1>
+    <div class="grp">
+      <label class="lbl2" for="nIn">Vertices</label>
+      <input id="nIn" type="number" min="1" max="50" value="7" title="1 to 50">
+      <button id="bCreate" class="pri">Create</button>
+    </div>
+    <div class="grp">
+      <button id="bRandom">Random</button>
+      <button id="bExample">Example</button>
+      <button id="bCircle" title="Re-arrange all vertices on a circle">Arrange</button>
+      <button id="bClear" class="danger">Clear</button>
+    </div>
+    <div class="grp">
+      <label class="sw"><input type="checkbox" id="tWeighted"><span class="track"></span>Weighted</label>
+      <label class="sw"><input type="checkbox" id="tDirected"><span class="track"></span>Directed</label>
+    </div>
+  </header>
+
+  <aside id="left">
+    <section class="card" id="statsCard">
+      <h2>Graph properties</h2>
+      <div class="stats">
+        <div class="stat"><span class="lbl">Vertices</span><span class="val" id="sV">0</span></div>
+        <div class="stat"><span class="lbl">Edges</span><span class="val" id="sE">0</span></div>
+        <div class="stat"><span class="lbl">Complete graph?</span><span class="val" id="sC">–</span><span class="sm" id="sCsub">&nbsp;</span></div>
+        <div class="stat"><span class="lbl" id="sCClbl">Connected components</span><span class="val" id="sCC">0</span></div>
+        <div class="stat wide" id="sSCCtile" hidden><span class="lbl">Strongly connected components</span><span class="val" id="sSCC">0</span></div>
+      </div>
+      <div id="sType"></div>
+    </section>
+    <section class="card" id="matCard">
+      <h2>Adjacency matrix</h2>
+      <div id="matHint"></div>
+      <div id="matWrap">
+        <div id="matEmpty" hidden>No vertices yet. Use “Create” at the top.</div>
+        <table id="mat"></table>
+      </div>
+    </section>
+  </aside>
+
+  <main id="center">
+    <div id="playbar">
+      <button id="pReset" title="First step">⏮</button>
+      <button id="pBack" title="Previous step">◀</button>
+      <button id="pPlay" title="Play / pause" class="pri">▶</button>
+      <button id="pFwd" title="Next step">▶▏</button>
+      <button id="pEnd" title="Last step">⏭</button>
+      <button id="pExit" title="Remove highlights and stop">Clear highlights</button>
+      <label class="sp">Speed <input type="range" id="speed" min="1" max="10" value="6"></label>
+      <span id="stepNo"></span>
+    </div>
+    <div id="msg"></div>
+    <div id="cvWrap"><canvas id="cv"></canvas></div>
+    <div id="legend">
+      <span><i style="background:#fdba74;border-color:#ea580c"></i>Current</span>
+      <span><i style="background:#fef08a;border-color:#ca8a04"></i>Frontier / queued</span>
+      <span><i style="background:#bfdbfe;border-color:#2563eb"></i>On stack</span>
+      <span><i style="background:#bbf7d0;border-color:#16a34a"></i>Done / in tree</span>
+      <span><b class="ln" style="border-color:#16a34a"></b>Tree edge</span>
+      <span><b class="ln" style="border-color:#f59e0b;border-top-style:dashed"></b>Candidate</span>
+      <span><b class="ln" style="border-color:#dc2626;border-top-style:dashed"></b>Rejected</span>
+      <span><b class="ln" style="border-color:#2563eb"></b>Shortest path</span>
+      <span class="hint">Drag vertices · double-click empty space to add one</span>
+    </div>
+    <section class="card" id="outCard">
+      <h2 id="outTitle">Algorithm output</h2>
+      <div id="panel"></div>
+    </section>
+  </main>
+
+  <aside id="right">
+    <section class="card">
+      <h2>Edit graph</h2>
+      <div class="row"><span class="k">Edge</span>
+        <select id="eU" aria-label="Edge from"></select><span id="eArrow">—</span><select id="eV" aria-label="Edge to"></select>
+        <input id="eW" type="number" min="1" max="999" value="1" title="Weight (1–999)" style="display:none">
+      </div>
+      <div class="row"><span class="k"></span><div class="btns"><button id="bInsE">Insert edge</button><button id="bDelE">Delete edge</button></div></div>
+      <div class="row"><span class="k">Vertex</span><select id="vIns" style="width:86px" aria-label="Insert position"></select><button id="bInsV">Insert vertex</button></div>
+      <div class="row"><span class="k"></span><select id="vDel" aria-label="Vertex to delete"></select><button id="bDelV">Delete vertex</button></div>
+      <p class="note">Inserting at an index shifts higher vertices up; deleting renumbers them down. You can also click matrix cells.</p>
+    </section>
+    <div class="seg" role="tablist" aria-label="Algorithm level">
+      <button id="tabBasic" class="on" role="tab" aria-selected="true">Basic</button>
+      <button id="tabAdv" role="tab" aria-selected="false">Advanced</button>
+    </div>
+    <div id="basicCards">
+    <section class="card">
+      <h2>Traversal</h2>
+      <div class="row"><span class="k">Start</span><select id="tStart"></select></div>
+      <div class="row"><span class="k"></span><div class="btns"><button id="bDFS" class="pri">DFS</button><button id="bBFS" class="pri">BFS</button></div></div>
+    </section>
+    <section class="card">
+      <h2>Minimum spanning tree</h2>
+      <div class="row"><span class="k">Prim start</span><select id="pStart"></select></div>
+      <div class="row"><span class="k"></span><div class="btns"><button id="bKru" class="pri">Kruskal</button><button id="bPrim" class="pri">Prim</button></div></div>
+      <p class="note">Edge directions are ignored. Turn Weighted off to treat every edge as cost 1.</p>
+    </section>
+    <section class="card">
+      <h2>Shortest paths</h2>
+      <div class="row"><span class="k">Source</span><select id="sSrc"></select></div>
+      <div class="row"><span class="k">Target</span><select id="sDst" style="width:110px"></select></div>
+      <div class="row"><span class="k"></span><div class="btns"><button id="bDij" class="pri">Dijkstra</button><button id="bFW" class="pri">Floyd–Warshall</button></div></div>
+      <p class="note">Dijkstra: single source. Floyd–Warshall: all pairs — click any cell in its matrix to trace that path.</p>
+    </section>
+    </div>
+    <div id="advCards" hidden>
+    <section class="card">
+      <h2>Travelling salesman</h2>
+      <div class="row"><span class="k">Start</span><select id="aStart"></select></div>
+      <div class="row"><span class="k"></span><button id="bTSP" class="pri">Dynamic Programming</button></div>
+      <p class="note">Held–Karp: cheapest cycle that visits every vertex once, using only existing edges (directions respected). Up to 15 vertices.</p>
+    </section>
+    <section class="card">
+      <h2>Graph coloring</h2>
+      <div class="row"><span class="k">Colors</span><input id="kCol" type="number" min="1" max="10" value="3" title="Number of colors (1–10)"></div>
+      <div class="row"><span class="k"></span><button id="bColor" class="pri">Backtracking</button></div>
+      <p class="note">Adjacent vertices must get different colors (directions ignored). Vertices are colored in index order.</p>
+    </section>
+    <section class="card">
+      <h2>Network flow</h2>
+      <div class="row"><span class="k">Source</span><select id="fSrc"></select></div>
+      <div class="row"><span class="k">Sink</span><select id="fSnk"></select></div>
+      <div class="row"><span class="k"></span><button id="bFlow" class="pri">Ford–Fulkerson</button></div>
+      <p class="note">Capacity = edge weight (1 when Weighted is off). Edge labels show flow/capacity. Undirected edges carry flow either way.</p>
+    </section>
+    </div>
+  </aside>
+</div>
+
+<script>
+'use strict';
+(() => {
+const MAXN = 50, INF = Infinity;
+const $ = id => document.getElementById(id);
+
+/* ------------------------------------------------------------------ state */
+// M[i][j] = stored weight (0 = no edge). Effective weight is 1 when Weighted is off.
+const G = { n: 0, M: [], pos: [], directed: false, weighted: false };
+let run = null, fi = 0, timer = null, delay = 650;
+let hoverNode = -1, dragNode = -1;
+
+const wt = (u, v) => (G.weighted ? G.M[u][v] : 1);
+const newMatrix = n => Array.from({ length: n }, () => new Array(n).fill(0));
+const ek = (u, v) => (G.directed ? u + '>' + v : (u < v ? u + '-' + v : v + '-' + u));
+function setEdgeUnd(map, u, v, s) { if (G.directed) { map[u + '>' + v] = s; map[v + '>' + u] = s; } else map[ek(u, v)] = s; }
+function nbrs(u) { const r = []; for (let v = 0; v < G.n; v++) if (G.M[u][v] > 0) r.push(v); return r; }
+// Underlying undirected effective weight (0 = none); used by spanning-tree algorithms
+function uwt(u, v) {
+  const a = G.M[u][v], b = G.M[v][u];
+  if (!a && !b) return 0;
+  const w = (a && b) ? Math.min(a, b) : (a || b);
+  return G.weighted ? w : 1;
+}
+function setEdge(u, v, w) { G.M[u][v] = w; if (!G.directed) G.M[v][u] = w; }
+
+/* --------------------------------------------------------------- messages */
+function say(t, kind) { const m = $('msg'); m.textContent = t; m.className = kind || ''; }
+function needV(k) {
+  k = k || 1;
+  if (G.n < k) { say(k === 1 ? 'The graph has no vertices. Create some first.' : 'This needs at least ' + k + ' vertices.', 'err'); return false; }
+  return true;
+}
+
+/* --------------------------------------------------------------- statistics */
+function countEdges() { let m = 0; for (let i = 0; i < G.n; i++) for (let j = 0; j < G.n; j++) if (G.M[i][j] > 0 && (G.directed || i < j)) m++; return m; }
+function totalWeight() { let s = 0; for (let i = 0; i < G.n; i++) for (let j = 0; j < G.n; j++) if (G.M[i][j] > 0 && (G.directed || i < j)) s += G.M[i][j]; return s; }
+function componentCount() {
+  const n = G.n, p = [...Array(n).keys()];
+  const f = x => (p[x] === x ? x : (p[x] = f(p[x])));
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (G.M[i][j] > 0 || G.M[j][i] > 0) p[f(i)] = f(j);
+  let c = 0; for (let i = 0; i < n; i++) if (f(i) === i) c++;
+  return c;
+}
+function sccCount() {
+  const n = G.n, idx = Array(n).fill(-1), low = Array(n).fill(0), on = Array(n).fill(false), st = [];
+  let t = 0, c = 0;
+  const dfs = u => {
+    idx[u] = low[u] = t++; st.push(u); on[u] = true;
+    for (let v = 0; v < n; v++) if (G.M[u][v] > 0) {
+      if (idx[v] < 0) { dfs(v); low[u] = Math.min(low[u], low[v]); }
+      else if (on[v]) low[u] = Math.min(low[u], idx[v]);
+    }
+    if (low[u] === idx[u]) { let w; do { w = st.pop(); on[w] = false; } while (w !== u); c++; }
+  };
+  for (let u = 0; u < n; u++) if (idx[u] < 0) dfs(u);
+  return c;
+}
+function updateStats() {
+  const n = G.n, m = countEdges(), max = G.directed ? n * (n - 1) : n * (n - 1) / 2;
+  $('sV').textContent = n;
+  $('sE').textContent = m;
+  $('sC').textContent = n === 0 ? '–' : (m === max ? 'Yes' : 'No');
+  $('sCsub').innerHTML = n === 0 ? '&nbsp;' : m + ' of ' + max + ' possible edges';
+  $('sCC').textContent = componentCount();
+  $('sCClbl').textContent = G.directed ? 'Connected components (weak)' : 'Connected components';
+  $('sSCCtile').hidden = !G.directed;
+  if (G.directed) $('sSCC').textContent = sccCount();
+  $('sType').textContent = (G.directed ? 'Directed' : 'Undirected') + ' · ' + (G.weighted ? 'Weighted · total weight ' + totalWeight() : 'Unweighted');
+  $('matHint').textContent = G.weighted
+    ? 'Click a cell and type a weight 1–999 (0 or empty deletes the edge).'
+    : 'Click a cell to toggle the edge (1 = edge, 0 = none).';
+  $('eArrow').textContent = G.directed ? '→' : '—';
+  $('eW').style.display = G.weighted ? '' : 'none';
+}
+
+/* ------------------------------------------------------------ adjacency UI */
+let hlCells = [];
+const HL = ['h-tree', 'h-cand', 'h-active', 'h-rej', 'h-path'];
+function buildMatrix() {
+  const n = G.n, t = $('mat');
+  hlCells = [];
+  $('matEmpty').hidden = n > 0;
+  if (!n) { t.innerHTML = ''; return; }
+  let h = '<thead><tr><th class="corner"></th>';
+  for (let j = 0; j < n; j++) h += '<th>' + j + '</th>';
+  h += '</tr></thead><tbody>';
+  for (let i = 0; i < n; i++) {
+    h += '<tr><th>' + i + '</th>';
+    for (let j = 0; j < n; j++) {
+      if (i === j) h += '<td class="dg">·</td>';
+      else { const w = G.M[i][j]; h += '<td data-i="' + i + '" data-j="' + j + '"' + (w > 0 ? ' class="on"' : '') + '>' + (w > 0 ? (G.weighted ? w : 1) : 0) + '</td>'; }
+    }
+    h += '</tr>';
+  }
+  t.innerHTML = h + '</tbody>';
+}
+function cellAt(i, j) { const r = $('mat').rows[i + 1]; return r ? r.cells[j + 1] : null; }
+function applyMatHighlight() {
+  for (const c of hlCells) c.classList.remove(...HL);
+  hlCells = [];
+  const V = view(); if (!V) return;
+  const mark = (a, b, s) => { const c = cellAt(a, b); if (c && c.dataset.i !== undefined && G.M[a][b] > 0) { c.classList.add('h-' + s); hlCells.push(c); } };
+  for (const k in V.es) {
+    const s = V.es[k];
+    if (k.indexOf('>') >= 0) { const [a, b] = k.split('>').map(Number); mark(a, b, s); }
+    else { const [a, b] = k.split('-').map(Number); mark(a, b, s); mark(b, a, s); }
+  }
+}
+$('mat').addEventListener('click', e => {
+  const td = e.target.closest('td[data-i]');
+  if (!td || td.querySelector('input')) return;
+  const i = +td.dataset.i, j = +td.dataset.j, arrow = G.directed ? '→' : '—';
+  if (!G.weighted) {
+    if (G.M[i][j] > 0) { setEdge(i, j, 0); changed(); say('Deleted edge ' + i + arrow + j + '.', 'ok'); }
+    else { setEdge(i, j, 1); changed(); say('Inserted edge ' + i + arrow + j + '.', 'ok'); }
+    return;
+  }
+  const cur = G.M[i][j];
+  td.innerHTML = '<input type="number" min="0" max="999" value="' + (cur || '') + '">';
+  const inp = td.firstChild; inp.focus(); inp.select();
+  let done = false;
+  const commit = ok => {
+    if (done) return; done = true;
+    if (!ok) { buildMatrix(); applyMatHighlight(); return; }
+    const raw = inp.value.trim(), w = raw === '' ? 0 : Number(raw);
+    if (!Number.isInteger(w) || w < 0 || w > 999) { buildMatrix(); applyMatHighlight(); say('Weight must be an integer from 1 to 999 (0 deletes the edge).', 'err'); return; }
+    if (w === cur) { buildMatrix(); applyMatHighlight(); return; }
+    setEdge(i, j, w); changed();
+    say(w === 0 ? 'Deleted edge ' + i + arrow + j + '.' : (cur ? 'Updated' : 'Inserted') + ' edge ' + i + arrow + j + ' (weight ' + w + ').', 'ok');
+  };
+  inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') commit(true); else if (ev.key === 'Escape') commit(false); });
+  inp.addEventListener('blur', () => commit(true));
+});
+
+/* ------------------------------------------------------------------ selects */
+function fillSel(id, opts, keep) {
+  const el = $(id), prev = el.value;
+  el.innerHTML = opts.map(o => '<option value="' + o.v + '">' + o.t + '</option>').join('');
+  if (keep && [...el.options].some(o => o.value === prev)) el.value = prev;
+}
+function populateSelects() {
+  const n = G.n, idx = [...Array(n).keys()].map(i => ({ v: i, t: String(i) }));
+  for (const id of ['eU', 'eV', 'vDel', 'tStart', 'pStart', 'sSrc', 'aStart', 'fSrc', 'fSnk']) fillSel(id, idx, true);
+  fillSel('vIns', idx.concat([{ v: n, t: n + ' (end)' }]), false);
+  $('vIns').value = String(n);
+  fillSel('sDst', [{ v: 'all', t: 'All vertices' }].concat(idx), true);
+  if (n > 1 && $('eU').value === $('eV').value) $('eV').value = String((+$('eU').value + 1) % n);
+  if (n > 1 && $('fSnk').value === $('fSrc').value) $('fSnk').value = String(+$('fSrc').value === n - 1 ? 0 : n - 1);
+}
+
+/* ------------------------------------------------------------ graph editing */
+function changed() { invalidateRun(); updateStats(); buildMatrix(); populateSelects(); refreshView(); }
+function circleLayout() {
+  const n = G.n, R = Math.max(40, Math.min(cw, ch) / 2 - 36);
+  G.pos = [];
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + 2 * Math.PI * i / n;
+    G.pos.push({ x: 0.5 + (R / cw) * Math.cos(a), y: 0.5 + (R / ch) * Math.sin(a) });
+  }
+}
+function freeSpot() {
+  let best = null, bd = -1;
+  for (let t = 0; t < 40; t++) {
+    const p = { x: 0.1 + 0.8 * Math.random(), y: 0.1 + 0.8 * Math.random() };
+    let d = Infinity;
+    for (const q of G.pos) { const dx = (p.x - q.x) * cw, dy = (p.y - q.y) * ch; d = Math.min(d, dx * dx + dy * dy); }
+    if (d > bd) { bd = d; best = p; }
+  }
+  return best;
+}
+function createVertices(n) { G.n = n; G.M = newMatrix(n); circleLayout(); changed(); }
+function insertVertexAt(idx, pos) {
+  const n = G.n;
+  for (const row of G.M) row.splice(idx, 0, 0);
+  G.M.splice(idx, 0, new Array(n + 1).fill(0));
+  G.pos.splice(idx, 0, pos || freeSpot());
+  G.n = n + 1;
+}
+function deleteVertexAt(idx) {
+  G.M.splice(idx, 1);
+  for (const row of G.M) row.splice(idx, 1);
+  G.pos.splice(idx, 1);
+  G.n--;
+}
+function loadExample() {
+  const E = [[0, 1, 7], [0, 3, 5], [1, 2, 8], [1, 3, 9], [1, 4, 7], [2, 4, 5], [3, 4, 15], [3, 5, 6], [4, 5, 8], [4, 6, 9], [5, 6, 11]];
+  G.n = 7; G.M = newMatrix(7); circleLayout();
+  for (const [u, v, w] of E) setEdge(u, v, w);
+  changed();
+  say('Example graph loaded (7 vertices). Turn on “Weighted” to see its edge weights.', 'ok');
+}
+function randomGraph() {
+  const n = Math.max(1, Math.min(MAXN, parseInt($('nIn').value, 10) || 8));
+  $('nIn').value = n;
+  G.n = n; G.M = newMatrix(n); circleLayout();
+  const rnd = k => Math.floor(Math.random() * k);
+  const perm = [...Array(n).keys()].sort(() => Math.random() - 0.5);
+  for (let i = 1; i < n; i++) {
+    const a = perm[rnd(i)], b = perm[i];
+    if (G.directed) setEdge(a, b, 1 + rnd(20)); else setEdge(a, b, 1 + rnd(20));
+  }
+  if (n > 2) {
+    let extras = Math.round(n * 0.7), guard = 0;
+    while (extras > 0 && guard++ < 2000) {
+      const a = rnd(n), b = rnd(n);
+      if (a === b || G.M[a][b] > 0 || (!G.directed && G.M[b][a] > 0)) continue;
+      setEdge(a, b, 1 + rnd(20)); extras--;
+    }
+  }
+  changed();
+  say('Random connected graph with ' + n + ' vertices generated.', 'ok');
+}
+
+/* ------------------------------------------------------------------ canvas */
+const cv = $('cv'), c2 = cv.getContext('2d');
+let cw = 600, ch = 400, dpr = 1;
+const NS = { none: ['#ffffff', '#374151'], current: ['#fdba74', '#ea580c'], frontier: ['#fef08a', '#ca8a04'], visited: ['#bfdbfe', '#2563eb'], done: ['#bbf7d0', '#16a34a'], path: ['#93c5fd', '#1d4ed8'] };
+const ES = {
+  none: { c: '#9ca3af', w: 1.6 }, tree: { c: '#16a34a', w: 3.6 }, cand: { c: '#f59e0b', w: 2.4, dash: [6, 4] },
+  active: { c: '#ea580c', w: 3.6 }, rej: { c: '#dc2626', w: 2.4, dash: [5, 4] }, path: { c: '#2563eb', w: 4.2 }
+};
+const PAL = ['#f87171', '#60a5fa', '#4ade80', '#fbbf24', '#c084fc', '#2dd4bf', '#fb923c', '#f472b6', '#a3e635', '#94a3b8'];
+const nodeR = () => (G.n > 35 ? 11 : G.n > 20 ? 13 : G.n > 10 ? 16 : 19);
+const pt = i => ({ x: G.pos[i].x * cw, y: G.pos[i].y * ch });
+const unit = (x, y) => { const l = Math.hypot(x, y); return l ? { x: x / l, y: y / l } : { x: 1, y: 0 }; };
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect();
+  dpr = window.devicePixelRatio || 1;
+  cw = Math.max(200, r.width); ch = Math.max(200, r.height);
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  draw();
+}
+function geom(i, j, R) {
+  const a = pt(i), b = pt(j), dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  const curved = G.directed && G.M[i][j] > 0 && G.M[j][i] > 0;
+  const amt = curved ? Math.min(34, 14 + len * 0.08) : 0;
+  const cx = (a.x + b.x) / 2 - uy * amt, cy = (a.y + b.y) / 2 + ux * amt;
+  const d0 = unit(cx - a.x, cy - a.y), d1 = unit(cx - b.x, cy - b.y);
+  const p0 = { x: a.x + d0.x * R, y: a.y + d0.y * R };
+  const p1 = { x: b.x + d1.x * (R + 1), y: b.y + d1.y * (R + 1) };
+  return { p0, p1, cx, cy, lx: .25 * p0.x + .5 * cx + .25 * p1.x, ly: .25 * p0.y + .5 * cy + .25 * p1.y, ang: Math.atan2(p1.y - cy, p1.x - cx) };
+}
+function arrow(x, y, ang, sz, col) {
+  c2.save(); c2.translate(x, y); c2.rotate(ang);
+  c2.beginPath(); c2.moveTo(0, 0); c2.lineTo(-sz, -sz * 0.5); c2.lineTo(-sz, sz * 0.5); c2.closePath();
+  c2.fillStyle = col; c2.fill(); c2.restore();
+}
+function draw() {
+  c2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c2.clearRect(0, 0, cw, ch);
+  const n = G.n;
+  if (!n) {
+    c2.fillStyle = '#9ca3af'; c2.font = '15px system-ui,sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+    c2.fillText('Empty graph — enter a vertex count and press Create, or double-click here to add a vertex.', cw / 2, ch / 2);
+    return;
+  }
+  const V = view(), R = nodeR();
+  const edges = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++)
+    if (G.M[i][j] > 0 && (G.directed || i < j)) edges.push({ i, j, s: (V && V.es[ek(i, j)]) || 'none' });
+  edges.sort((a, b) => (a.s !== 'none') - (b.s !== 'none'));
+  const labels = [];
+  for (const e of edges) {
+    const sty = ES[e.s] || ES.none, g = geom(e.i, e.j, R);
+    c2.beginPath(); c2.moveTo(g.p0.x, g.p0.y); c2.quadraticCurveTo(g.cx, g.cy, g.p1.x, g.p1.y);
+    c2.strokeStyle = sty.c; c2.lineWidth = sty.w; c2.setLineDash(sty.dash || []); c2.stroke(); c2.setLineDash([]);
+    if (G.directed) arrow(g.p1.x, g.p1.y, g.ang, 7 + sty.w, sty.c);
+    else if (V && V.ad && V.ad[ek(e.i, e.j)]) {
+      if (V.ad[ek(e.i, e.j)] > 0) arrow(g.p1.x, g.p1.y, g.ang, 7 + sty.w, sty.c);
+      else arrow(g.p0.x, g.p0.y, Math.atan2(g.p0.y - g.cy, g.p0.x - g.cx), 7 + sty.w, sty.c);
+    }
+    const ltxt = V && V.el ? V.el[ek(e.i, e.j)] : (G.weighted ? String(G.M[e.i][e.j]) : undefined);
+    if (ltxt !== undefined) labels.push({ x: g.lx, y: g.ly, t: ltxt, c: e.s === 'none' ? '#374151' : sty.c });
+  }
+  if (labels.length) {
+    c2.font = 'bold 11px system-ui,sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+    for (const l of labels) {
+      const w = c2.measureText(l.t).width + 8;
+      c2.fillStyle = 'rgba(255,255,255,.95)'; c2.fillRect(l.x - w / 2, l.y - 8, w, 16);
+      c2.strokeStyle = '#e5e7eb'; c2.lineWidth = 1; c2.strokeRect(l.x - w / 2, l.y - 8, w, 16);
+      c2.fillStyle = l.c; c2.fillText(l.t, l.x, l.y + 0.5);
+    }
+  }
+  const fs = R >= 16 ? 13 : 11;
+  for (let i = 0; i < n; i++) {
+    const p = pt(i), st = NS[(V && V.ns[i]) || 'none'] || NS.none, hot = i === hoverNode || i === dragNode;
+    c2.beginPath(); c2.arc(p.x, p.y, R, 0, Math.PI * 2);
+    const ncv = V && V.nc ? V.nc[i] : undefined;
+    c2.fillStyle = ncv !== undefined ? PAL[ncv] : st[0]; c2.fill();
+    c2.lineWidth = hot ? 3.5 : 2; c2.strokeStyle = st[1]; c2.stroke();
+    c2.fillStyle = '#111827'; c2.font = 'bold ' + fs + 'px system-ui,sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+    c2.fillText(String(i), p.x, p.y + 0.5);
+  }
+  if (V && V.nt) {
+    c2.font = 'bold 11px system-ui,sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+    for (const k in V.nt) {
+      const p = pt(+k);
+      c2.lineWidth = 3; c2.strokeStyle = '#fff'; c2.strokeText(V.nt[k], p.x, p.y + R + 10);
+      c2.fillStyle = '#1d4ed8'; c2.fillText(V.nt[k], p.x, p.y + R + 10);
+    }
+  }
+}
+function mouse(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+function nodeAt(x, y) {
+  const R = nodeR() + 3;
+  for (let i = G.n - 1; i >= 0; i--) { const p = pt(i); if (Math.hypot(p.x - x, p.y - y) <= R) return i; }
+  return -1;
+}
+cv.addEventListener('pointerdown', e => {
+  const p = mouse(e), i = nodeAt(p.x, p.y);
+  if (i >= 0) { dragNode = i; try { cv.setPointerCapture(e.pointerId); } catch (_) {} cv.style.cursor = 'grabbing'; e.preventDefault(); draw(); }
+});
+cv.addEventListener('pointermove', e => {
+  const p = mouse(e);
+  if (dragNode >= 0) {
+    const R = nodeR();
+    G.pos[dragNode] = { x: Math.min(1 - R / cw, Math.max(R / cw, p.x / cw)), y: Math.min(1 - R / ch, Math.max(R / ch, p.y / ch)) };
+    draw();
+  } else {
+    const i = nodeAt(p.x, p.y);
+    if (i !== hoverNode) { hoverNode = i; cv.style.cursor = i >= 0 ? 'grab' : 'default'; draw(); }
+  }
+});
+const endDrag = () => { if (dragNode >= 0) { dragNode = -1; cv.style.cursor = hoverNode >= 0 ? 'grab' : 'default'; draw(); } };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', () => { if (dragNode < 0 && hoverNode >= 0) { hoverNode = -1; draw(); } });
+cv.addEventListener('dblclick', e => {
+  const p = mouse(e);
+  if (nodeAt(p.x, p.y) >= 0) return;
+  if (G.n >= MAXN) { say('Maximum of ' + MAXN + ' vertices reached.', 'err'); return; }
+  insertVertexAt(G.n, { x: p.x / cw, y: p.y / ch });
+  changed(); say('Added vertex ' + (G.n - 1) + '.', 'ok');
+});
+
+/* ---------------------------------------------------------------- playback */
+function invalidateRun() { pause(); run = null; fi = 0; }
+function pause() { if (timer) { clearTimeout(timer); timer = null; } }
+function step() {
+  timer = null;
+  if (run && fi < run.frames.length - 1) { fi++; if (fi < run.frames.length - 1) timer = setTimeout(step, delay); }
+  refreshView();
+}
+function play() {
+  if (!run) return;
+  pause();
+  if (fi >= run.frames.length - 1) fi = 0;
+  timer = setTimeout(step, delay);
+  refreshView();
+}
+function launch(title, frames, extra) {
+  pause();
+  run = Object.assign({ title, frames, pathSel: null }, extra || {});
+  fi = 0;
+  timer = frames.length > 1 ? setTimeout(step, delay) : null;
+  refreshView();
+}
+function view() {
+  if (!run) return null;
+  const f = run.frames[fi];
+  const ns = f.ns.slice(), es = Object.assign({}, f.es, f.tr || {});
+  if (f.tn) for (const k in f.tn) ns[k] = f.tn[k];
+  if (f.p.t === 'fw' && run.pathSel) {
+    const pth = fwPath(f.p.N, run.pathSel[0], run.pathSel[1]);
+    if (pth) { for (let i = 0; i < pth.length; i++) ns[pth[i]] = 'path'; for (let i = 0; i + 1 < pth.length; i++) es[ek(pth[i], pth[i + 1])] = 'path'; }
+  }
+  const V = { ns, es, nt: f.nt || null, nc: f.nc || null, el: null, ad: null };
+  if (f.p.t === 'flow') flowView(V, f.p);
+  return V;
+}
+// Key of the drawn edge that carries residual step u -> v (forward arc, or the reverse arc when cancelling flow)
+function arcKey(u, v) { return G.M[u][v] > 0 ? ek(u, v) : ek(v, u); }
+function flowView(V, p) {
+  const n = G.n, F = p.F;
+  V.el = {}; V.ad = {};
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (!(G.M[i][j] > 0 && (G.directed || i < j))) continue;
+    const k = ek(i, j), c = wt(i, j);
+    if (G.directed) {
+      const fl = Math.max(0, F[i * n + j]);
+      V.el[k] = fl + '/' + c;
+      if (fl > 0 && !V.es[k]) V.es[k] = 'tree';
+    } else {
+      const net = F[i * n + j];
+      V.el[k] = Math.abs(net) + '/' + c;
+      if (net !== 0) { V.ad[k] = net > 0 ? 1 : -1; if (!V.es[k]) V.es[k] = 'tree'; }
+    }
+  }
+}
+function refreshView() { draw(); renderPanel(); applyMatHighlight(); updatePlayUI(); }
+function updatePlayUI() {
+  const has = !!run;
+  for (const id of ['pReset', 'pBack', 'pPlay', 'pFwd', 'pEnd', 'pExit']) $(id).disabled = !has;
+  $('pPlay').textContent = timer ? '⏸' : '▶';
+  $('stepNo').textContent = has ? 'Step ' + (fi + 1) + ' / ' + run.frames.length : '';
+  if (has) say(run.frames[fi].msg, '');
+}
+$('pPlay').onclick = () => { if (timer) { pause(); refreshView(); } else play(); };
+$('pBack').onclick = () => { if (!run) return; pause(); fi = Math.max(0, fi - 1); refreshView(); };
+$('pFwd').onclick = () => { if (!run) return; pause(); fi = Math.min(run.frames.length - 1, fi + 1); refreshView(); };
+$('pReset').onclick = () => { if (!run) return; pause(); fi = 0; refreshView(); };
+$('pEnd').onclick = () => { if (!run) return; pause(); fi = run.frames.length - 1; refreshView(); };
+$('pExit').onclick = () => { invalidateRun(); refreshView(); say('Highlights cleared.', ''); };
+$('speed').oninput = e => { delay = 1150 - 100 * (+e.target.value); };
+delay = 1150 - 100 * (+$('speed').value);
+
+/* -------------------------------------------------------- frame recording */
+function mkRec() {
+  const r = { ns: Array(G.n).fill('none'), es: {}, nc: {}, frames: [] };
+  r.snap = (msg, p, tr, tn, nt) => r.frames.push({ msg, ns: r.ns.slice(), es: Object.assign({}, r.es), nc: Object.assign({}, r.nc), tr: tr || null, tn: tn || null, nt: nt ? Object.assign({}, nt) : null, p });
+  return r;
+}
+
+/* ------------------------------------------------------------- traversals */
+function buildDFS(s) {
+  const n = G.n, R = mkRec(), vis = Array(n).fill(false), order = [], stack = [];
+  const P = () => ({ t: 'trav', order: order.slice(), aux: stack.slice(), auxLabel: 'Call stack (bottom → top)' });
+  R.ns[s] = 'frontier';
+  R.snap('DFS from vertex ' + s + ': go as deep as possible, then backtrack. Neighbors are tried in increasing index order.', P());
+  const go = (u, par) => {
+    vis[u] = true; order.push(u); stack.push(u); R.ns[u] = 'current';
+    R.snap('Visit ' + u + (par >= 0 ? ' (reached from ' + par + ')' : '') + '.', P());
+    for (const v of nbrs(u)) {
+      if (vis[v]) continue;
+      R.ns[u] = 'visited'; R.es[ek(u, v)] = 'tree';
+      go(v, u);
+      R.ns[u] = 'current';
+      R.snap(v + ' has no unvisited neighbors left — backtrack to ' + u + '.', P());
+    }
+    stack.pop(); R.ns[u] = 'done';
+  };
+  go(s, -1);
+  R.snap('DFS complete: visited ' + order.length + ' of ' + n + ' vertices' + (order.length < n ? ' (' + (n - order.length) + ' not reachable from ' + s + ')' : '') + '. Order: ' + order.join(' → '), P());
+  return R.frames;
+}
+function buildBFS(s) {
+  const n = G.n, R = mkRec(), vis = Array(n).fill(false), order = [], q = [];
+  const P = () => ({ t: 'trav', order: order.slice(), aux: q.slice(), auxLabel: 'Queue (front → back)' });
+  vis[s] = true; q.push(s); R.ns[s] = 'frontier';
+  R.snap('BFS from vertex ' + s + ': explore level by level. Enqueue ' + s + '.', P());
+  while (q.length) {
+    const u = q.shift(); order.push(u); R.ns[u] = 'current';
+    R.snap('Dequeue ' + u + ' and visit it.', P());
+    let any = false;
+    for (const v of nbrs(u)) if (!vis[v]) {
+      any = true; vis[v] = true; q.push(v); R.ns[v] = 'frontier'; R.es[ek(u, v)] = 'tree';
+      R.snap('Discover ' + v + ' from ' + u + ' → enqueue ' + v + '.', P(), { [ek(u, v)]: 'active' });
+    }
+    if (!any) R.snap(u + ' has no undiscovered neighbors.', P());
+    R.ns[u] = 'done';
+  }
+  R.snap('BFS complete: visited ' + order.length + ' of ' + n + ' vertices' + (order.length < n ? ' (' + (n - order.length) + ' not reachable from ' + s + ')' : '') + '. Order: ' + order.join(' → '), P());
+  return R.frames;
+}
+
+/* ---------------------------------------------------------- spanning trees */
+function buildKruskal() {
+  const n = G.n, R = mkRec(), edges = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const w = uwt(i, j); if (w > 0) edges.push({ u: i, v: j, w, res: null }); }
+  edges.sort((a, b) => a.w - b.w || a.u - b.u || a.v - b.v);
+  const comps = componentCount(), need = n - comps;
+  const par = [...Array(n).keys()], rank = Array(n).fill(0);
+  const find = x => (par[x] === x ? x : (par[x] = find(par[x])));
+  const union = (a, b) => {
+    a = find(a); b = find(b); if (a === b) return;
+    if (rank[a] > rank[b]) par[b] = a; else if (rank[a] < rank[b]) par[a] = b; else { par[b] = a; rank[a]++; }
+  };
+  let total = 0, acc = 0, last = -1;
+  const P = (k, done) => ({ t: 'kru', k, done, total, acc, need, edges });
+  const dn = G.directed ? ' Edge directions are ignored (the lighter of two opposite edges is used).' : '';
+  R.snap('Kruskal: sort the ' + edges.length + ' edges by weight, then take each edge unless it closes a cycle (checked with Union–Find).' + dn, P(-1, need === 0));
+  if (need > 0) {
+    for (let k = 0; k < edges.length; k++) {
+      const e = edges[k]; last = k;
+      const tn = { [e.u]: 'current', [e.v]: 'current' };
+      if (find(e.u) !== find(e.v)) {
+        union(e.u, e.v); e.res = 'acc'; total += e.w; acc++;
+        setEdgeUnd(R.es, e.u, e.v, 'tree'); R.ns[e.u] = 'done'; R.ns[e.v] = 'done';
+        R.snap('Edge (' + e.u + ', ' + e.v + ') weight ' + e.w + ' joins two different trees → accept. Total = ' + total + '.', P(k, false), null, tn);
+      } else {
+        e.res = 'rej';
+        const tr = {}; setEdgeUnd(tr, e.u, e.v, 'rej');
+        R.snap('Edge (' + e.u + ', ' + e.v + ') weight ' + e.w + ' would close a cycle → reject.', P(k, false), tr, tn);
+      }
+      if (acc === need) break;
+    }
+  }
+  R.snap(need === 0 ? 'The graph has no edges, so the spanning tree is empty (weight 0).'
+    : 'Kruskal complete: ' + acc + ' edge' + (acc === 1 ? '' : 's') + ', total ' + (G.weighted ? 'weight' : 'cost') + ' = ' + total + (comps > 1 ? '. The graph is disconnected, so this is a spanning forest (' + comps + ' trees).' : '.'), P(last, true));
+  return R.frames;
+}
+function buildPrim(s) {
+  const n = G.n, R = mkRec(), key = Array(n).fill(INF), par = Array(n).fill(-1), inT = Array(n).fill(false);
+  let total = 0, count = 0;
+  key[s] = 0; R.ns[s] = 'frontier';
+  const P = cur => ({ t: 'prim', key: key.slice(), par: par.slice(), inT: inT.slice(), total, cur });
+  const cands = () => { const tr = {}; for (let v = 0; v < n; v++) if (!inT[v] && par[v] >= 0) setEdgeUnd(tr, par[v], v, 'cand'); return tr; };
+  const keys = () => { const t = {}; for (let v = 0; v < n; v++) if (!inT[v] && key[v] < INF) t[v] = String(key[v]); return t; };
+  const dn = G.directed ? ' Edge directions are ignored.' : '';
+  R.snap('Prim from vertex ' + s + ': grow one tree, always adding the cheapest edge that leaves it. key[' + s + '] = 0, all others ∞.' + dn, P(-1), null, null, keys());
+  for (let it = 0; it < n; it++) {
+    let u = -1;
+    for (let v = 0; v < n; v++) if (!inT[v] && key[v] < INF && (u < 0 || key[v] < key[u])) u = v;
+    if (u < 0) break;
+    inT[u] = true; count++; R.ns[u] = 'current';
+    if (par[u] >= 0) { setEdgeUnd(R.es, par[u], u, 'tree'); total += key[u]; }
+    R.snap(u === s ? 'Start: add vertex ' + s + ' to the tree.' : 'Pick ' + u + ' (smallest key ' + key[u] + ') → add edge (' + par[u] + ', ' + u + '). Total = ' + total + '.', P(u), cands(), null, keys());
+    R.ns[u] = 'done';
+    const ups = [];
+    for (let v = 0; v < n; v++) {
+      if (inT[v]) continue;
+      const w = uwt(u, v);
+      if (w > 0 && w < key[v]) { key[v] = w; par[v] = u; R.ns[v] = 'frontier'; ups.push(v + ' (' + w + ')'); }
+    }
+    R.snap(ups.length ? 'Update keys through ' + u + ': ' + ups.join(', ') + '.' : u + ' offers no cheaper connection.', P(-1), cands(), null, keys());
+  }
+  const miss = n - count;
+  R.snap('Prim complete: ' + (count - 1) + ' edge' + (count - 1 === 1 ? '' : 's') + ', total ' + (G.weighted ? 'weight' : 'cost') + ' = ' + total + (miss ? '. ' + miss + ' vertex' + (miss === 1 ? ' is' : 'es are') + ' not reachable from ' + s + ' (disconnected graph).' : '.'), P(-1));
+  return R.frames;
+}
+
+/* ------------------------------------------------------------ shortest path */
+function buildDijkstra(s, t) {
+  const n = G.n, R = mkRec(), dist = Array(n).fill(INF), prev = Array(n).fill(-1), vis = Array(n).fill(false);
+  const verbose = countEdges() <= 80;
+  dist[s] = 0; R.ns[s] = 'frontier';
+  const sync = () => { R.es = {}; for (let v = 0; v < n; v++) if (prev[v] >= 0) R.es[ek(prev[v], v)] = vis[v] ? 'tree' : 'cand'; };
+  const lab = () => { const o = {}; for (let v = 0; v < n; v++) if (dist[v] < INF) o[v] = String(dist[v]); return o; };
+  const P = (cur, extra) => Object.assign({ t: 'dij', dist: dist.slice(), prev: prev.slice(), vis: vis.slice(), cur, src: s, tgt: t }, extra || {});
+  R.snap('Dijkstra from vertex ' + s + ': dist[' + s + '] = 0, all others ∞. Repeatedly finalize the closest unfinalized vertex and relax its outgoing edges.', P(-1), null, null, lab());
+  for (let it = 0; it < n; it++) {
+    let u = -1;
+    for (let v = 0; v < n; v++) if (!vis[v] && dist[v] < INF && (u < 0 || dist[v] < dist[u])) u = v;
+    if (u < 0) break;
+    vis[u] = true; R.ns[u] = 'current'; sync();
+    R.snap('Finalize ' + u + ' (shortest distance ' + dist[u] + ').', P(u), null, null, lab());
+    for (const v of nbrs(u)) {
+      if (vis[v]) continue;
+      const w = wt(u, v), nd = dist[u] + w, old = dist[v];
+      if (nd < dist[v]) {
+        dist[v] = nd; prev[v] = u; R.ns[v] = 'frontier'; sync();
+        R.snap('Relax ' + u + (G.directed ? '→' : '—') + v + ': ' + dist[u] + ' + ' + w + ' = ' + nd + ' < ' + (old === INF ? '∞' : old) + ' → update dist[' + v + '].', P(u), { [ek(u, v)]: 'active' }, null, lab());
+      } else if (verbose) {
+        R.snap('Relax ' + u + (G.directed ? '→' : '—') + v + ': ' + dist[u] + ' + ' + w + ' = ' + nd + ' ≥ ' + dist[v] + ' → no improvement.', P(u), { [ek(u, v)]: 'rej' }, null, lab());
+      }
+    }
+    R.ns[u] = 'done';
+  }
+  sync();
+  let msg, pathText = null;
+  if (t >= 0) {
+    if (dist[t] < INF) {
+      const path = []; for (let v = t; v >= 0; v = prev[v]) path.push(v); path.reverse();
+      for (const v of path) R.ns[v] = 'path';
+      for (let i = 0; i + 1 < path.length; i++) R.es[ek(path[i], path[i + 1])] = 'path';
+      pathText = 'Shortest path ' + s + ' → ' + t + ': ' + path.join(' → ') + ' (distance ' + dist[t] + ')';
+      msg = 'Done. ' + pathText + '.';
+    } else { pathText = t + ' is unreachable from ' + s + '.'; msg = 'Done. ' + pathText; }
+  } else msg = 'Done. Shortest distances from ' + s + ' to every reachable vertex are shown in the table.';
+  R.snap(msg, P(-1, { pathText }), null, null, lab());
+  return R.frames;
+}
+function fwPath(N, a, b) {
+  if (a === b) return [a];
+  if (N[a][b] == null) return null;
+  const p = [a]; let c = a, g = 0;
+  while (c !== b && g++ <= G.n) { c = N[c][b]; if (c == null) return null; p.push(c); }
+  return c === b ? p : null;
+}
+function buildFW() {
+  const n = G.n, R = mkRec();
+  const D = Array.from({ length: n }, () => new Array(n).fill(INF)), N = Array.from({ length: n }, () => new Array(n).fill(null));
+  for (let i = 0; i < n; i++) {
+    D[i][i] = 0; N[i][i] = i;
+    for (let j = 0; j < n; j++) if (i !== j && G.M[i][j] > 0) { D[i][j] = wt(i, j); N[i][j] = j; }
+  }
+  const cp = a => a.map(r => r.slice());
+  R.snap('Floyd–Warshall: start with direct edge costs (∞ = no edge, 0 on the diagonal). For each k, test whether going through vertex k shortens any pair i → j.', { t: 'fw', k: -1, D: cp(D), N: cp(N), chg: [], done: n === 0 });
+  for (let k = 0; k < n; k++) {
+    const chg = [];
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (D[i][k] + D[k][j] < D[i][j]) { D[i][j] = D[i][k] + D[k][j]; N[i][j] = N[i][k]; chg.push(i * n + j); }
+    }
+    R.snap('k = ' + k + ': allow vertex ' + k + ' as an intermediate stop → ' + (chg.length ? chg.length + ' distance' + (chg.length === 1 ? '' : 's') + ' improved (orange cells).' : 'no distance improved.'),
+      { t: 'fw', k, D: cp(D), N: cp(N), chg, done: k === n - 1 }, null, { [k]: 'current' });
+  }
+  R.snap('Done. All-pairs shortest distances are final. Click any cell in the matrix to trace its path on the graph.', { t: 'fw', k: n, D: cp(D), N: cp(N), chg: [], done: true });
+  return R.frames;
+}
+
+/* ------------------------------------------------------- advanced algorithms */
+const TSP_MAX = 15;
+const popcnt = x => { let c = 0; while (x) { x &= x - 1; c++; } return c; };
+
+// Travelling salesman — Held–Karp dynamic programming over subsets.
+function buildTSP(s) {
+  const n = G.n, R = mkRec();
+  const base = { t: 'tsp', s, layers: [], upTo: 0, closing: null, pick: -1, tour: null, total: 0 };
+  if (n === 1) {
+    R.ns[0] = 'done';
+    R.snap('Only one vertex: the tour is just ' + s + ' → ' + s + ' (cost 0).', Object.assign({}, base, { tour: [s, s] }));
+    return R.frames;
+  }
+  const others = []; for (let v = 0; v < n; v++) if (v !== s) others.push(v);
+  const m = others.length, FULL = (1 << m) - 1;
+  const W = (a, b) => (G.M[a][b] > 0 ? wt(a, b) : INF);
+  const dp = new Float64Array((FULL + 1) * m).fill(INF), par = new Int8Array((FULL + 1) * m).fill(-1);
+  const byPop = Array.from({ length: m + 1 }, () => []);
+  for (let mask = 1; mask <= FULL; mask++) byPop[popcnt(mask)].push(mask);
+  const pathOf = (mask, j) => {
+    const p = [];
+    for (;;) {
+      p.push(others[j]);
+      const pm = mask ^ (1 << j);
+      if (pm === 0) break;
+      const i = par[mask * m + j]; mask = pm; j = i;
+    }
+    p.push(s); return p.reverse();
+  };
+  const layers = [];
+  const P = (upTo, extra) => Object.assign({}, base, { layers, upTo }, extra || {});
+  const trOf = p => { const tr = {}; for (let i = 0; i + 1 < p.length; i++) tr[ek(p[i], p[i + 1])] = 'cand'; return tr; };
+  const costWord = G.weighted ? 'cost' : 'number of edges';
+  R.ns[s] = 'current';
+  R.snap('Held–Karp DP from vertex ' + s + ': dp[S][j] = cheapest path that starts at ' + s + ', visits exactly the vertices in S, and ends at j. Layers are built by subset size. Missing edges cannot be used' + (G.directed ? '; edge directions matter.' : '.'), P(0));
+  let dead = 0;
+  for (let k = 1; k <= m; k++) {
+    if (k === 1) {
+      for (let j = 0; j < m; j++) dp[(1 << j) * m + j] = W(s, others[j]);
+    } else {
+      for (const mask of byPop[k]) for (let j = 0; j < m; j++) {
+        if (!((mask >> j) & 1)) continue;
+        const pm = mask ^ (1 << j); let best = INF, bi = -1;
+        for (let i = 0; i < m; i++) {
+          if (!((pm >> i) & 1)) continue;
+          const d = dp[pm * m + i]; if (d === INF) continue;
+          const w = W(others[i], others[j]);
+          if (w !== INF && d + w < best) { best = d + w; bi = i; }
+        }
+        dp[mask * m + j] = best; par[mask * m + j] = bi;
+      }
+    }
+    let reach = 0; const ent = [];
+    for (const mask of byPop[k]) for (let j = 0; j < m; j++) if ((mask >> j) & 1) {
+      const c = dp[mask * m + j]; if (c < INF) { reach++; ent.push({ mask, j, c }); }
+    }
+    ent.sort((a, b) => a.c - b.c || a.mask - b.mask || a.j - b.j);
+    const best = ent.slice(0, 8).map(e => ({ path: pathOf(e.mask, e.j), cost: e.c }));
+    layers.push({ k, subsets: byPop[k].length, states: byPop[k].length * k, reach, best });
+    if (!reach) {
+      dead = k;
+      R.snap('Subsets of size ' + k + ': no state is reachable — no path from ' + s + ' can visit ' + k + ' other vertices using existing edges. A tour is impossible.', P(layers.length));
+      break;
+    }
+    R.ns.fill('none'); R.ns[s] = 'current';
+    for (const v of best[0].path) if (v !== s) R.ns[v] = 'frontier';
+    R.snap('Subsets of size ' + k + ': ' + reach + ' of ' + (byPop[k].length * k) + ' (subset, last vertex) states are reachable. Cheapest partial path: ' + best[0].path.join(' → ') + ' (' + costWord + ' ' + best[0].cost + ').', P(layers.length), trOf(best[0].path));
+  }
+  R.ns.fill('none');
+  if (dead) { R.snap('No Hamiltonian cycle exists from vertex ' + s + ' in this graph, so the travelling-salesman tour does not exist.', P(layers.length)); return R.frames; }
+  const closing = []; let pick = -1, bestTot = INF;
+  for (let j = 0; j < m; j++) {
+    const d = dp[FULL * m + j], back = W(others[j], s), tot = d + back;
+    closing.push({ v: others[j], d, back, tot });
+    if (tot < bestTot) { bestTot = tot; pick = j; }
+  }
+  if (pick < 0) {
+    R.snap('Every path that visits all vertices lacks an edge back to ' + s + ' — no Hamiltonian cycle, so there is no tour.', P(layers.length, { closing, pick: -1 }));
+    return R.frames;
+  }
+  const tour = pathOf(FULL, pick); tour.push(s);
+  R.ns[s] = 'current'; for (const v of tour) if (v !== s) R.ns[v] = 'frontier';
+  R.snap('Close the cycle: for every last vertex j take dp[all][j] + w(j → ' + s + '). Best is j = ' + others[pick] + ' with total ' + bestTot + '.', P(layers.length, { closing, pick, tour, total: bestTot }), trOf(tour));
+  R.ns.fill('none');
+  let run2 = 0;
+  for (let r = 0; r + 1 < tour.length; r++) {
+    const a = tour[r], b = tour[r + 1], w = W(a, b);
+    run2 += w; R.es[ek(a, b)] = 'tree'; R.ns[a] = 'done'; R.ns[b] = 'done';
+    R.snap('Tour edge ' + (r + 1) + ' of ' + (tour.length - 1) + ': ' + a + ' → ' + b + ' (' + w + '). Running total ' + run2 + '.', P(layers.length, { closing, pick, tour, total: bestTot }));
+  }
+  R.snap('Optimal tour: ' + tour.join(' → ') + ', total ' + costWord + ' ' + bestTot + '.', P(layers.length, { closing, pick, tour, total: bestTot }));
+  return R.frames;
+}
+
+// Graph coloring — backtracking, vertices in index order, colors 1..k.
+function buildColoring(k) {
+  const n = G.n, R = mkRec(), col = Array(n).fill(-1);
+  const A = Array.from({ length: n }, (_, u) => Array.from({ length: n }, (_, v) => u !== v && (G.M[u][v] > 0 || G.M[v][u] > 0)));
+  const CAP = 2500, LIMIT = 3000000;
+  let steps = 0, backs = 0, rec = true, aborted = false;
+  const P = cur => ({ t: 'col', k, col: col.slice(), cur, steps, backs });
+  const sync = cur => {
+    R.ns.fill('none'); R.nc = {}; const nt = {};
+    for (let v = 0; v < n; v++) if (col[v] >= 0) { R.nc[v] = col[v]; nt[v] = 'c' + (col[v] + 1); }
+    if (cur >= 0) R.ns[cur] = 'current';
+    return nt;
+  };
+  const snap = (msg, cur, tr) => {
+    if (!rec) return;
+    if (R.frames.length >= CAP) {
+      rec = false; const nt = sync(-1);
+      R.snap('Animation limit (' + CAP + ' frames) reached — the search keeps running silently…', P(-1), null, null, nt);
+      return;
+    }
+    const nt = sync(cur); R.snap(msg, P(cur), tr, null, nt);
+  };
+  snap('Backtracking coloring with ' + k + ' color' + (k === 1 ? '' : 's') + ': give vertices 0, 1, 2, … the smallest color no neighbor already uses; if a vertex has none left, go back and change an earlier choice. Edge directions are ignored.', -1);
+  const go = v => {
+    if (v === n) return true;
+    for (let c = 0; c < k; c++) {
+      if (++steps > LIMIT) { aborted = true; return false; }
+      const conf = []; for (let u = 0; u < n; u++) if (A[v][u] && col[u] === c) conf.push(u);
+      col[v] = c;
+      if (conf.length) {
+        const tr = {}; for (const u of conf) setEdgeUnd(tr, v, u, 'rej');
+        snap('Vertex ' + v + ' ← color ' + (c + 1) + ': neighbor' + (conf.length > 1 ? 's ' : ' ') + conf.join(', ') + ' already use' + (conf.length > 1 ? '' : 's') + ' it → conflict, try the next color.', v, tr);
+        col[v] = -1; continue;
+      }
+      snap('Vertex ' + v + ' ← color ' + (c + 1) + ': no neighbor uses it → keep it and move on' + (v + 1 < n ? ' to vertex ' + (v + 1) : '') + '.', v);
+      if (go(v + 1)) return true;
+      if (aborted) return false;
+      col[v] = -1; backs++;
+      snap('Backtrack: remove color ' + (c + 1) + ' from vertex ' + v + ' and try its next color.', v);
+    }
+    if (!aborted) snap('Vertex ' + v + ': all ' + k + ' color' + (k === 1 ? '' : 's') + ' fail → ' + (v > 0 ? 'backtrack to vertex ' + (v - 1) + '.' : 'no coloring exists.'), v);
+    return false;
+  };
+  const found = go(0);
+  const used = new Set(col.filter(c => c >= 0)).size;
+  const nt = sync(-1);
+  let msg;
+  if (found) msg = 'Valid ' + k + '-coloring found using ' + used + ' color' + (used === 1 ? '' : 's') + ' (' + steps + ' color checks, ' + backs + ' backtracks).' + (rec ? '' : ' The animation showed the first ' + CAP + ' frames; the rest ran silently.');
+  else if (aborted) msg = 'Stopped after ' + LIMIT.toLocaleString() + ' color checks without a result — the search space is too large.';
+  else msg = 'No valid ' + k + '-coloring exists (search exhausted after ' + steps + ' checks). Try more colors.';
+  R.snap(msg, P(-1), null, null, nt);
+  return R.frames;
+}
+
+// Network flow — Ford–Fulkerson with DFS augmenting paths in the residual graph.
+function buildFlow(s, t) {
+  const n = G.n, R = mkRec(), F = new Int32Array(n * n);
+  const cap = (u, v) => (G.M[u][v] > 0 ? wt(u, v) : 0);
+  const res = (u, v) => cap(u, v) - F[u * n + v];
+  const rows = []; let value = 0, rec = true;
+  const CAPF = 600, ITER = 20000;
+  const P = extra => Object.assign({ t: 'flow', F: F.slice(), value, rows, upTo: rows.length, src: s, snk: t, done: false }, extra || {});
+  const mark = () => { R.ns.fill('none'); R.ns[s] = 'current'; R.ns[t] = 'done'; };
+  const findPath = () => {
+    const vis = Array(n).fill(false), prev = Array(n).fill(-1);
+    const dfs = u => {
+      vis[u] = true; if (u === t) return true;
+      for (let v = 0; v < n; v++) if (!vis[v] && res(u, v) > 0) { prev[v] = u; if (dfs(v)) return true; }
+      return false;
+    };
+    return dfs(s) ? prev : null;
+  };
+  mark();
+  R.snap('Ford–Fulkerson from source ' + s + ' (orange) to sink ' + t + ' (green): repeatedly find an augmenting path in the residual graph with DFS and push its bottleneck. Capacities: ' + (G.weighted ? 'edge weights.' : 'every edge has capacity 1.'), P());
+  let iter = 0, hitLimit = false;
+  for (;;) {
+    if (iter >= ITER) { hitLimit = true; break; }
+    const prev = findPath(); if (!prev) break;
+    const path = []; for (let v = t; v !== s; v = prev[v]) path.push(v);
+    path.push(s); path.reverse();
+    let b = INF;
+    for (let i = 0; i + 1 < path.length; i++) b = Math.min(b, res(path[i], path[i + 1]));
+    for (let i = 0; i + 1 < path.length; i++) { const u = path[i], v = path[i + 1]; F[u * n + v] += b; F[v * n + u] -= b; }
+    value += b; iter++;
+    rows.push({ path, b, value });
+    if (!rec) continue;
+    if (R.frames.length >= CAPF) { rec = false; mark(); R.snap('Animation limit reached — remaining augmentations run silently…', P()); continue; }
+    const tr = {}, tn = {};
+    for (let i = 0; i + 1 < path.length; i++) tr[arcKey(path[i], path[i + 1])] = 'path';
+    for (const v of path) if (v !== s && v !== t) tn[v] = 'frontier';
+    mark();
+    R.snap('Augmentation #' + iter + ': path ' + path.join(' → ') + ', bottleneck ' + b + ' → total flow ' + value + '.', P(), tr, tn);
+  }
+  const inS = Array(n).fill(false), q = [s]; inS[s] = true;
+  while (q.length) { const u = q.shift(); for (let v = 0; v < n; v++) if (!inS[v] && res(u, v) > 0) { inS[v] = true; q.push(v); } }
+  let cutCap = 0;
+  for (let u = 0; u < n; u++) if (inS[u]) for (let v = 0; v < n; v++) if (!inS[v] && cap(u, v) > 0) { cutCap += cap(u, v); R.es[arcKey(u, v)] = 'rej'; }
+  R.ns.fill('none');
+  for (let v = 0; v < n; v++) if (inS[v]) R.ns[v] = 'visited';
+  R.ns[s] = 'current'; R.ns[t] = 'done';
+  const S = [], T = []; for (let v = 0; v < n; v++) (inS[v] ? S : T).push(v);
+  const msg = hitLimit
+    ? 'Stopped after ' + ITER.toLocaleString() + ' augmentations; flow so far = ' + value + '.'
+    : 'Done: no augmenting path remains → maximum flow = ' + value + '. Minimum cut: S = {' + S.join(', ') + '}, T = {' + T.join(', ') + '}, capacity ' + cutCap + ' (red dashed edges).' + (rec ? '' : ' The animation showed only the first ' + CAPF + ' frames.');
+  R.snap(msg, P({ done: true }));
+  return R.frames;
+}
+
+/* ------------------------------------------------------------ output panel */
+const chip = x => '<span class="chip">' + x + '</span>';
+function renderPanel() {
+  const el = $('panel');
+  if (!run) { $('outTitle').textContent = 'Algorithm output'; el.innerHTML = '<div class="empty">Run an algorithm from the panel on the right to see its step-by-step state here.</div>'; return; }
+  $('outTitle').textContent = 'Output — ' + run.title;
+  const p = run.frames[fi].p;
+  let h = '';
+  if (p.t === 'trav') {
+    h = '<div class="kv"><b>Visit order</b> ' + (p.order.length ? p.order.map(chip).join('<span class="arr">→</span>') : '<span class="mut">—</span>') + '</div>' +
+        '<div class="kv"><b>' + p.auxLabel + '</b> ' + (p.aux.length ? p.aux.map(chip).join('') : '<span class="mut">empty</span>') + '</div>';
+  } else if (p.t === 'kru') {
+    h = '<div class="kv"><b>' + (G.weighted ? 'MST weight' : 'MST cost') + '</b> ' + p.total + ' &nbsp; <b>Edges taken</b> ' + p.acc + ' / ' + p.need + '</div>' +
+        '<table class="tbl"><thead><tr><th>#</th><th>Edge</th><th>Weight</th><th>Result</th></tr></thead><tbody>';
+    p.edges.forEach((e, r) => {
+      let cls = 'pend', res = '';
+      if (r <= p.k) { cls = e.res === 'acc' ? 'acc' : 'rej'; res = e.res === 'acc' ? '✔ accepted' : '✘ makes a cycle'; if (r === p.k && !p.done) cls += ' cur'; }
+      else if (p.done) res = '— not needed';
+      h += '<tr class="' + cls + '"><td>' + (r + 1) + '</td><td>' + e.u + ' — ' + e.v + '</td><td>' + e.w + '</td><td>' + res + '</td></tr>';
+    });
+    h += '</tbody></table>';
+  } else if (p.t === 'prim') {
+    h = '<div class="kv"><b>' + (G.weighted ? 'MST weight' : 'MST cost') + '</b> ' + p.total + '</div>' +
+        '<table class="tbl"><thead><tr><th>Vertex</th><th>Key</th><th>Parent</th><th>Status</th></tr></thead><tbody>';
+    for (let v = 0; v < G.n; v++) {
+      const st = p.inT[v] ? 'in tree' : (p.key[v] < INF ? 'candidate' : '—');
+      h += '<tr class="' + (v === p.cur ? 'cur' : p.inT[v] ? 'acc' : '') + '"><td>' + v + '</td><td>' + (p.key[v] === INF ? '∞' : p.key[v]) + '</td><td>' + (p.par[v] < 0 ? '–' : p.par[v]) + '</td><td>' + st + '</td></tr>';
+    }
+    h += '</tbody></table>';
+  } else if (p.t === 'dij') {
+    h = '<div class="kv"><b>Source</b> ' + p.src + (p.tgt >= 0 ? ' &nbsp; <b>Target</b> ' + p.tgt : '') + '</div>';
+    if (p.pathText) h += '<div class="kv"><b>Result</b> ' + p.pathText + '</div>';
+    h += '<table class="tbl"><thead><tr><th>Vertex</th><th>Distance</th><th>Previous</th><th>Status</th></tr></thead><tbody>';
+    const fin = p.vis.every(Boolean) || p.pathText !== undefined && p.pathText !== null;
+    for (let v = 0; v < G.n; v++) {
+      const st = p.vis[v] ? 'finalized' : (p.dist[v] < INF ? 'tentative' : (p.cur === -1 && run.frames[fi].msg.indexOf('Done') === 0 ? 'unreachable' : '—'));
+      h += '<tr class="' + (v === p.cur ? 'cur' : p.vis[v] ? 'acc' : '') + '"><td>' + v + '</td><td>' + (p.dist[v] === INF ? '∞' : p.dist[v]) + '</td><td>' + (p.prev[v] < 0 ? '–' : p.prev[v]) + '</td><td>' + st + '</td></tr>';
+    }
+    h += '</tbody></table>';
+  } else if (p.t === 'tsp') {
+    const costWord = G.weighted ? 'Cost' : 'Edges';
+    h = '<div class="kv"><b>Start</b> ' + p.s + ' &nbsp; <b>DP states</b> ' + (G.n > 1 ? ((1 << (G.n - 1)) * (G.n - 1)).toLocaleString() : 0) + '</div>';
+    if (p.tour) h += '<div class="kv"><b>Best tour</b> ' + p.tour.map(chip).join('<span class="arr">→</span>') + ' &nbsp; <b>' + costWord + '</b> ' + p.total + '</div>';
+    if (p.upTo) {
+      h += '<table class="tbl"><thead><tr><th>Subset size</th><th>Subsets</th><th>Reachable states</th><th>Cheapest partial path</th></tr></thead><tbody>';
+      for (let r = 0; r < p.upTo; r++) {
+        const L = p.layers[r], b = L.best[0];
+        h += '<tr class="' + (r === p.upTo - 1 && !p.closing ? 'cur' : '') + '"><td>' + L.k + '</td><td>' + L.subsets + '</td><td>' + L.reach + ' / ' + L.states + '</td><td>' + (b ? b.path.join(' → ') + ' (' + b.cost + ')' : '—') + '</td></tr>';
+      }
+      h += '</tbody></table>';
+      const last = p.layers[p.upTo - 1];
+      if (!p.closing && last && last.best.length > 1) {
+        h += '<div class="kv" style="margin-top:8px"><b>Cheapest states of size ' + last.k + '</b></div><table class="tbl"><thead><tr><th>Partial path</th><th>Cost</th></tr></thead><tbody>';
+        for (const e of last.best) h += '<tr><td>' + e.path.join(' → ') + '</td><td>' + e.cost + '</td></tr>';
+        h += '</tbody></table>';
+      }
+    }
+    if (p.closing) {
+      h += '<div class="kv" style="margin-top:8px"><b>Closing the cycle</b> <span class="mut">dp[all][j] + w(j → ' + p.s + ')</span></div><table class="tbl"><thead><tr><th>Last vertex j</th><th>dp[all][j]</th><th>Back edge</th><th>Total</th></tr></thead><tbody>';
+      p.closing.forEach((c, i) => {
+        const f = x => (x === INF ? '∞' : x);
+        h += '<tr class="' + (i === p.pick ? 'acc' : 'pend') + '"><td>' + c.v + '</td><td>' + f(c.d) + '</td><td>' + f(c.back) + '</td><td>' + f(c.tot) + '</td></tr>';
+      });
+      h += '</tbody></table>';
+    }
+  } else if (p.t === 'col') {
+    h = '<div class="kv"><b>Colors</b> ' + Array.from({ length: p.k }, (_, c) => '<span class="chip c" style="background:' + PAL[c] + '">c' + (c + 1) + '</span>').join('') +
+        ' &nbsp; <b>Checks</b> ' + p.steps + ' &nbsp; <b>Backtracks</b> ' + p.backs + '</div>';
+    h += '<div class="kv"><b>Assignment</b> ' + p.col.map((c, v) => '<span class="chip' + (c >= 0 ? ' c' : '') + '" style="' + (c >= 0 ? 'background:' + PAL[c] + ';' : '') + (v === p.cur ? 'outline:2px solid #ea580c;' : '') + '">' + v + (c >= 0 ? ':c' + (c + 1) : ':·') + '</span>').join('') + '</div>';
+  } else if (p.t === 'flow') {
+    h = '<div class="kv"><b>Source</b> ' + p.src + ' &nbsp; <b>Sink</b> ' + p.snk + ' &nbsp; <b>Flow value</b> ' + p.value + (p.done ? ' <span class="mut">(maximum)</span>' : '') + '</div>';
+    if (!p.upTo) h += '<div class="mut">No augmenting path' + (p.done ? ' exists from the source to the sink.' : ' found yet.') + '</div>';
+    else {
+      const start = Math.max(0, p.upTo - 200);
+      h += '<table class="tbl"><thead><tr><th>#</th><th>Augmenting path</th><th>Bottleneck</th><th>Total flow</th></tr></thead><tbody>';
+      if (start > 0) h += '<tr class="pend"><td colspan="4">… ' + start + ' earlier augmentations hidden</td></tr>';
+      for (let r = start; r < p.upTo; r++) {
+        const w = p.rows[r];
+        h += '<tr class="' + (r === p.upTo - 1 && !p.done ? 'cur' : '') + '"><td>' + (r + 1) + '</td><td>' + w.path.join(' → ') + '</td><td>' + w.b + '</td><td>' + w.value + '</td></tr>';
+      }
+      h += '</tbody></table>';
+    }
+  } else if (p.t === 'fw') {
+    const n = G.n, chg = new Set(p.chg), sel = run.pathSel;
+    h = '<div class="kv"><b>' + (p.k < 0 ? 'Initial distance matrix' : p.k >= n ? 'Final distance matrix' : 'Distances after k = ' + p.k) + '</b> <span class="mut">— click a cell (row i → column j) to trace its shortest path</span></div>';
+    if (sel) {
+      const pth = fwPath(p.N, sel[0], sel[1]);
+      h += '<div class="kv"><b>Path ' + sel[0] + ' → ' + sel[1] + '</b> ' + (pth ? pth.join(' → ') + ' (distance ' + p.D[sel[0]][sel[1]] + ')' : 'none yet') + '</div>';
+    }
+    h += '<table class="fw"><thead><tr><th></th>';
+    for (let j = 0; j < n; j++) h += '<th>' + j + '</th>';
+    h += '</tr></thead><tbody>';
+    for (let i = 0; i < n; i++) {
+      h += '<tr><th>' + i + '</th>';
+      for (let j = 0; j < n; j++) {
+        const v = p.D[i][j];
+        let cls = v === INF ? 'inf' : '';
+        if (i === j) cls += ' dg'; else if (p.k >= 0 && p.k < n && (i === p.k || j === p.k)) cls += ' piv';
+        if (chg.has(i * n + j)) cls += ' chg';
+        if (sel && sel[0] === i && sel[1] === j) cls += ' sel';
+        h += '<td class="' + cls + '" data-fi="' + i + '" data-fj="' + j + '">' + (v === INF ? '∞' : v) + '</td>';
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table>';
+  }
+  el.innerHTML = h;
+  const cur = el.querySelector('tr.cur');
+  if (cur) el.scrollTop = Math.max(0, cur.offsetTop - el.clientHeight / 2);
+}
+$('panel').addEventListener('click', e => {
+  const td = e.target.closest('td[data-fi]');
+  if (!td || !run) return;
+  run.pathSel = [+td.dataset.fi, +td.dataset.fj];
+  refreshView();
+});
+
+/* ----------------------------------------------------------------- wiring */
+$('tWeighted').addEventListener('change', e => {
+  G.weighted = e.target.checked; changed();
+  say(G.weighted ? 'Weighted on: edges now carry weights (click a matrix cell to type one).' : 'Weighted off: every edge counts as 1.', 'ok');
+});
+$('tDirected').addEventListener('change', e => {
+  const was = G.directed; G.directed = e.target.checked;
+  let merged = false;
+  if (was && !G.directed) {
+    for (let i = 0; i < G.n; i++) for (let j = i + 1; j < G.n; j++) {
+      const a = G.M[i][j], b = G.M[j][i];
+      if (a !== b) merged = true;
+      const w = (a && b) ? Math.min(a, b) : (a || b);
+      G.M[i][j] = G.M[j][i] = w;
+    }
+  }
+  changed();
+  say(G.directed ? 'Directed on: edge u→v is now one-way. Click matrix cell (row u, column v) to set it.'
+    : 'Directed off: every edge is two-way' + (merged ? ' (one-way edges were made two-way)' : '') + '.', 'ok');
+});
+$('bCreate').onclick = () => {
+  const n = parseInt($('nIn').value, 10);
+  if (!(n >= 1 && n <= MAXN)) { say('Enter a number of vertices from 1 to ' + MAXN + '.', 'err'); return; }
+  createVertices(n);
+  say('Created ' + n + ' isolated vertices. Add edges by clicking cells in the adjacency matrix.', 'ok');
+};
+$('bRandom').onclick = randomGraph;
+$('bExample').onclick = loadExample;
+$('bCircle').onclick = () => { if (!G.n) return; circleLayout(); refreshView(); say('Vertices arranged on a circle.', 'ok'); };
+$('bClear').onclick = () => { createVertices(0); say('Graph cleared.', 'ok'); };
+
+$('bInsE').onclick = () => {
+  if (!needV()) return;
+  const u = +$('eU').value, v = +$('eV').value;
+  if (u === v) { say('Self-loops are not supported: choose two different vertices.', 'err'); return; }
+  let w = 1;
+  if (G.weighted) {
+    w = Number($('eW').value);
+    if (!Number.isInteger(w) || w < 1 || w > 999) { say('Weight must be an integer from 1 to 999.', 'err'); return; }
+  }
+  const had = G.M[u][v] > 0, arrow = G.directed ? '→' : '—';
+  if (had && !G.weighted) { say('Edge ' + u + arrow + v + ' already exists.', 'err'); return; }
+  setEdge(u, v, w); changed();
+  say((had ? 'Updated' : 'Inserted') + ' edge ' + u + arrow + v + (G.weighted ? ' (weight ' + w + ')' : '') + '.', 'ok');
+};
+$('bDelE').onclick = () => {
+  if (!needV()) return;
+  const u = +$('eU').value, v = +$('eV').value, arrow = G.directed ? '→' : '—';
+  if (u === v || G.M[u][v] === 0) { say('There is no edge ' + u + arrow + v + ' to delete.', 'err'); return; }
+  setEdge(u, v, 0); changed(); say('Deleted edge ' + u + arrow + v + '.', 'ok');
+};
+$('bInsV').onclick = () => {
+  if (G.n >= MAXN) { say('Maximum of ' + MAXN + ' vertices reached.', 'err'); return; }
+  const idx = +$('vIns').value, shifted = idx < G.n;
+  insertVertexAt(idx); changed();
+  say('Inserted vertex ' + idx + (shifted ? '; former vertices ' + idx + '…' + (G.n - 2) + ' are now ' + (idx + 1) + '…' + (G.n - 1) + '.' : ' at the end.'), 'ok');
+};
+$('bDelV').onclick = () => {
+  if (!needV()) return;
+  const idx = +$('vDel').value, shifted = idx < G.n - 1;
+  deleteVertexAt(idx); changed();
+  say('Deleted vertex ' + idx + ' and all its edges' + (shifted ? '; higher vertices were renumbered down by one.' : '.'), 'ok');
+};
+
+$('bDFS').onclick = () => { if (!needV()) return; const s = +$('tStart').value; launch('DFS from ' + s, buildDFS(s)); };
+$('bBFS').onclick = () => { if (!needV()) return; const s = +$('tStart').value; launch('BFS from ' + s, buildBFS(s)); };
+$('bKru').onclick = () => { if (!needV()) return; launch('Kruskal', buildKruskal()); };
+$('bPrim').onclick = () => { if (!needV()) return; const s = +$('pStart').value; launch('Prim from ' + s, buildPrim(s)); };
+$('bDij').onclick = () => {
+  if (!needV()) return;
+  const s = +$('sSrc').value, t = $('sDst').value === 'all' ? -1 : +$('sDst').value;
+  launch('Dijkstra from ' + s, buildDijkstra(s, t));
+};
+$('bFW').onclick = () => {
+  if (!needV()) return;
+  const s = +$('sSrc').value, t = $('sDst').value === 'all' ? -1 : +$('sDst').value;
+  launch('Floyd–Warshall', buildFW(), { pathSel: t >= 0 ? [s, t] : null });
+};
+
+function setTab(adv) {
+  $('basicCards').hidden = adv; $('advCards').hidden = !adv;
+  $('tabBasic').classList.toggle('on', !adv); $('tabAdv').classList.toggle('on', adv);
+  $('tabBasic').setAttribute('aria-selected', String(!adv)); $('tabAdv').setAttribute('aria-selected', String(adv));
+}
+$('tabBasic').onclick = () => setTab(false);
+$('tabAdv').onclick = () => setTab(true);
+$('bTSP').onclick = () => {
+  if (!needV()) return;
+  if (G.n > TSP_MAX) { say('Held–Karp needs 2^(n−1)·(n−1) states, so this simulator limits it to ' + TSP_MAX + ' vertices (the graph has ' + G.n + ').', 'err'); return; }
+  const s = +$('aStart').value; launch('TSP (Held–Karp) from ' + s, buildTSP(s));
+};
+$('bColor').onclick = () => {
+  if (!needV()) return;
+  const k = parseInt($('kCol').value, 10);
+  if (!(k >= 1 && k <= 10)) { say('The number of colors must be between 1 and 10.', 'err'); return; }
+  launch('Graph coloring (' + k + ' colors)', buildColoring(k));
+};
+$('bFlow').onclick = () => {
+  if (!needV(2)) return;
+  const s = +$('fSrc').value, t = +$('fSnk').value;
+  if (s === t) { say('Source and sink must be different vertices.', 'err'); return; }
+  launch('Ford–Fulkerson ' + s + ' → ' + t, buildFlow(s, t));
+};
+
+/* -------------------------------------------------------------------- init */
+if ('ResizeObserver' in window) new ResizeObserver(() => resize()).observe($('cvWrap'));
+window.addEventListener('resize', resize);
+resize();
+loadExample();
+say('Edit the graph with the adjacency matrix (bottom-left) or the Edit panel, then run an algorithm on the right.', '');
+window.GraphSim = { G, buildDFS, buildBFS, buildKruskal, buildPrim, buildDijkstra, buildFW, fwPath, countEdges, componentCount, sccCount, buildTSP, buildColoring, buildFlow };
+})();
+</script>
+</body>
+</html>
