@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Array &amp; Linked List Visualizer</title>
+<style>
+:root{
+  --ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--line2:#cbd5e1;--soft:#f8fafc;
+  --accent:#2563eb;--accent2:#1d4ed8;
+  --probe:#f59e0b;--probe-soft:#fef3c7;
+  --range:#e0f2fe;--range-line:#38bdf8;
+  --jump:#7c3aed;--jump-soft:#ede9fe;
+  --ok:#16a34a;--ok-soft:#dcfce7;
+  --bad:#dc2626;--bad-soft:#fee2e2;
+  --pick:#0d9488;--pick-soft:#ccfbf1;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:#fff;color:var(--ink);font:15px/1.45 var(--sans)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 20px 60px}
+h1{font-size:26px;margin:0 0 2px;letter-spacing:-.01em}
+.sub{margin:0 0 18px;color:var(--muted)}
+.tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tab{appearance:none;border:0;background:none;padding:10px 16px;font:600 15px var(--sans);color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--accent);border-color:var(--accent)}
+.panel{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px 16px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:12px 14px;align-items:flex-end;margin-bottom:12px}
+.row:last-child{margin-bottom:0}
+.field{display:flex;flex-direction:column;gap:4px}
+.field>label{font:600 11px var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+input[type=text],input[type=number]{height:36px;border:1px solid var(--line2);border-radius:8px;padding:0 10px;font:14px var(--mono);color:var(--ink);background:#fff;min-width:0}
+input:focus{outline:2px solid #93c5fd;outline-offset:0;border-color:var(--accent)}
+input[type=number]{width:78px}
+.inline{display:flex;align-items:center;gap:6px}
+.inline input[type=text]{width:130px}
+.mono{font-family:var(--mono)}
+.wide{width:min(430px,70vw)}
+.spacer{flex:1}
+.btn{height:36px;padding:0 14px;border:1px solid var(--line2);background:#fff;border-radius:8px;font:600 13px var(--sans);color:var(--ink);cursor:pointer;transition:background .15s,border-color .15s}
+.btn:hover{background:var(--soft);border-color:#94a3b8}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent2)}
+.btn.icon{width:40px;padding:0;font-size:14px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line2);border-radius:9px;overflow:hidden;background:#fff}
+.seg button{appearance:none;border:0;border-right:1px solid var(--line);background:#fff;padding:0 14px;height:36px;font:600 13px var(--sans);color:#334155;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:var(--soft)}
+.seg button.on{background:var(--accent);color:#fff}
+.seg button:disabled{opacity:.35;cursor:not-allowed;background:#fff;color:#334155}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px dashed var(--line)}
+.speed{display:flex;align-items:center;gap:8px;margin-left:10px;font-size:12px;color:var(--muted)}
+.speed input{width:120px}
+.count{margin-left:auto;font:600 12px var(--mono);color:var(--muted)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+@media(max-width:980px){.layout{grid-template-columns:1fr}}
+.stage-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:8px}
+.stage-head h2{font-size:16px;margin:0}
+.badge{font:700 12px var(--sans);padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--muted);border:1px solid var(--line)}
+.badge.ok{background:var(--ok-soft);color:#166534;border-color:#86efac}
+.badge.bad{background:var(--bad-soft);color:#991b1b;border-color:#fca5a5}
+.stat{margin-left:auto;font:600 12px var(--mono);color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;border:2px solid;vertical-align:-2px;margin-right:5px}
+.canvas{overflow-x:auto;padding:4px 0 8px;min-height:130px}
+
+/* ---- array cells ---- */
+.arr1d{display:flex;flex-wrap:wrap;gap:38px 8px;padding:30px 6px 6px}
+.cw{display:flex;flex-direction:column;align-items:center;gap:6px}
+.idx{font:12px var(--mono);color:var(--muted)}
+.arr2d{display:inline-grid;gap:30px 8px;padding:6px;align-items:center;justify-items:center}
+.hd{font:600 12px var(--mono);color:var(--muted)}
+.cell{position:relative;width:58px;height:48px;border:2px solid var(--line2);border-radius:9px;background:#fff;transition:background .25s,border-color .25s,transform .25s,box-shadow .25s,opacity .25s}
+.cell input{width:100%;height:100%;border:0;background:transparent;text-align:center;font:600 16px var(--mono);color:var(--ink);outline:none;border-radius:7px;padding:0}
+.cell input:focus{background:#eff6ff;outline:none}
+.cell .fl{position:absolute;right:4px;bottom:1px;font:9px var(--mono);color:#94a3b8;font-style:normal;pointer-events:none}
+.tags{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:5px;display:flex;gap:2px;pointer-events:none;z-index:2}
+.tg{font:700 10px var(--mono);background:#0f172a;color:#fff;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.tg.tg-ok{background:var(--ok)}
+.cell.rng{background:var(--range);border-color:var(--range-line)}
+.cell.out{background:#f1f5f9;border-color:#e2e8f0;opacity:.5}
+.cell.vis{background:#f1f5f9;border-color:#e2e8f0}
+.cell.vis input{color:#94a3b8}
+.cell.pick{background:var(--pick-soft);border-color:var(--pick)}
+.cell.jmp{background:var(--jump-soft);border-color:var(--jump)}
+.cell.probe{background:var(--probe-soft);border-color:var(--probe);transform:translateY(-4px) scale(1.07);box-shadow:0 6px 14px rgba(245,158,11,.35)}
+.cell.found{background:var(--ok-soft);border-color:var(--ok);transform:translateY(-4px) scale(1.09);box-shadow:0 6px 16px rgba(22,163,74,.35)}
+
+.result{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.result .expr{font:600 13px var(--mono);color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.mat{display:grid;gap:6px}
+.chip{min-width:44px;height:36px;display:grid;place-items:center;padding:0 8px;border:2px solid var(--pick);background:var(--pick-soft);border-radius:8px;font:600 14px var(--mono)}
+.chip.big{height:42px;min-width:56px;font-size:17px}
+.chip.ph{border-style:dashed;border-color:var(--line2);background:#fff;color:#94a3b8}
+
+.msg{margin-top:10px;min-height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.msg.err{background:var(--bad-soft);border-color:#fca5a5;color:#7f1d1d}
+.msg code,.info code{font:600 12.5px var(--mono);background:#e2e8f0;border-radius:4px;padding:1px 5px}
+
+/* ---- side panels ---- */
+.side h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.code{font:12.5px/1.65 var(--mono);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 0;overflow-x:auto}
+.ln{white-space:pre;padding:0 12px;border-left:3px solid transparent;min-height:21px}
+.ln.on{background:var(--probe-soft);border-left-color:var(--probe)}
+.info{font-size:13.5px}
+.info p{margin:6px 0 0;color:#334155}
+.info .t{font-weight:700}
+
+/* ---- linked list ---- */
+#l-stage svg{display:block}
+#l-stage .nv{font:700 16px var(--mono);fill:#0f172a}
+#l-stage .nul{font:600 15px var(--sans);fill:#94a3b8}
+#l-stage .pill{font:700 10.5px var(--mono)}
+#l-stage .nd.st-new,#l-stage .nd.st-done{animation:pop .4s ease}
+#l-stage .nd.st-gone{opacity:.55}
+@keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+#l-stage .nd{transform-box:fill-box;transform-origin:center}
+.empty-note{font:600 14px var(--mono);fill:#64748b}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Array &amp; Linked List Visualizer</h1>
+  <p class="sub">Watch indexing, slicing, four search algorithms, and linked-list pointer surgery, one highlighted step at a time.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab on" data-tab="array" role="tab">Arrays</button>
+    <button class="tab" data-tab="list" role="tab">Linked Lists</button>
+  </div>
+
+  <!-- ===================== ARRAYS ===================== -->
+  <section id="tab-array">
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>Dimension</label>
+          <div class="seg" id="a-dim"><button data-v="1" class="on">1D</button><button data-v="2">2D</button></div>
+        </div>
+        <div class="field" id="a-size1"><label for="a-len">Length (1–30)</label><input id="a-len" type="number" min="1" max="30" value="10"></div>
+        <div class="field" id="a-size2" hidden><label>Rows × Cols (≤ 30 cells)</label>
+          <div class="inline"><input id="a-rows" type="number" min="1" max="30" value="2"><span>×</span><input id="a-cols" type="number" min="1" max="30" value="5"></div>
+        </div>
+        <button class="btn" id="a-resize">Apply size</button>
+        <div class="spacer"></div>
+        <button class="btn" id="a-rand-sorted">Random sorted</button>
+        <button class="btn" id="a-rand-unsorted">Random unsorted</button>
+        <button class="btn" id="a-sort">Sort</button>
+      </div>
+      <div class="row">
+        <div class="field"><label for="a-values">Values (comma separated, row-major in 2D)</label>
+          <input id="a-values" type="text" class="wide mono" spellcheck="false"></div>
+        <button class="btn" id="a-setvals">Set values</button>
+      </div>
+      <div class="row">
+        <div class="field"><label>Operation</label>
+          <div class="seg" id="a-op">
+            <button data-v="index" class="on">Indexing</button>
+            <button data-v="slice">Slicing</button>
+            <button data-v="linear">Linear search</button>
+            <button data-v="binary">Binary search</button>
+            <button data-v="jump">Jump search</button>
+            <button data-v="exp">Exponential search</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" id="a-spec-wrap"><label id="a-spec-label">Expression</label>
+          <div class="inline mono"><span>arr[</span><input id="a-s1" type="text" spellcheck="false" autocomplete="off"><span id="a-comma">,</span><input id="a-s2" type="text" spellcheck="false" autocomplete="off"><span>]</span></div>
+        </div>
+        <div class="field" id="a-target-wrap" hidden><label for="a-target">Target value</label>
+          <div class="inline"><input id="a-target" type="text" value="42" spellcheck="false" autocomplete="off"><button class="btn" id="a-pick" title="Pick a random value that is in the array">🎯 From array</button></div>
+        </div>
+        <button class="btn primary" id="a-run">▶ Run</button>
+      </div>
+      <div id="a-bar"></div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="stage-head"><h2 id="a-title">1D array</h2><span class="badge" id="a-status">Ready</span><span class="stat" id="a-stat"></span></div>
+        <div class="legend">
+          <span><i style="background:#fef3c7;border-color:#f59e0b"></i>Probe</span>
+          <span><i style="background:#e0f2fe;border-color:#38bdf8"></i>Active range</span>
+          <span><i style="background:#f1f5f9;border-color:#e2e8f0"></i>Ruled out</span>
+          <span><i style="background:#ede9fe;border-color:#7c3aed"></i>Jump landing</span>
+          <span><i style="background:#ccfbf1;border-color:#0d9488"></i>Selected</span>
+          <span><i style="background:#dcfce7;border-color:#16a34a"></i>Found</span>
+        </div>
+        <div class="canvas" id="a-stage"></div>
+        <div class="result" id="a-result" hidden></div>
+        <div class="msg" id="a-msg"></div>
+      </div>
+      <aside class="side">
+        <div class="panel"><h3>Pseudo-code</h3><div class="code" id="a-code"></div></div>
+        <div class="panel info" id="a-info"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== LINKED LISTS ===================== -->
+  <section id="tab-list" hidden>
+    <div class="panel">
+      <div class="row">
+        <div class="field"><label>List type</label>
+          <div class="seg" id="l-kind"><button data-v="singly" class="on">Singly</button><button data-v="doubly">Doubly</button></div>
+        </div>
+        <div class="field"><label>Operation</label>
+          <div class="seg" id="l-op"><button data-v="insert" class="on">Insert</button><button data-v="delete">Delete</button><button data-v="update">Update</button></div>
+        </div>
+        <div class="field"><label>Where</label>
+          <div class="seg" id="l-pos"><button data-v="head">Head</button><button data-v="tail">Tail</button><button data-v="index" class="on">Index</button><button data-v="value">By value</button></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" id="l-f-val"><label for="l-val" id="l-val-lbl">Value to insert</label><input id="l-val" type="text" value="99" style="width:110px" autocomplete="off"></div>
+        <div class="field" id="l-f-idx"><label for="l-idx">Index</label><input id="l-idx" type="text" value="3" style="width:90px" autocomplete="off"></div>
+        <div class="field" id="l-f-find" hidden><label for="l-find" id="l-find-lbl">Value to find</label><input id="l-find" type="text" value="33" style="width:110px" autocomplete="off"></div>
+        <button class="btn primary" id="l-run">▶ Run</button>
+        <div class="spacer"></div>
+        <button class="btn" id="l-reset">Reset list (10 nodes)</button>
+        <button class="btn" id="l-random">Random list</button>
+        <button class="btn" id="l-empty">Empty list</button>
+      </div>
+      <div id="l-bar"></div>
+    </div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="stage-head"><h2 id="l-title">Singly linked list</h2><span class="badge" id="l-status">Ready</span><span class="stat" id="l-stat"></span></div>
+        <div class="legend">
+          <span><i style="background:#fef3c7;border-color:#f59e0b"></i>curr</span>
+          <span><i style="background:#dcfce7;border-color:#16a34a"></i>New / updated</span>
+          <span><i style="background:#fee2e2;border-color:#dc2626"></i>Target to delete</span>
+          <span><i style="background:#f1f5f9;border-color:#94a3b8"></i>Visited</span>
+          <span style="color:#ea580c">━ pointer being rewired</span>
+          <span style="color:#0284c7">╌ new pointer</span>
+        </div>
+        <div class="canvas" id="l-stage"></div>
+        <div class="msg" id="l-msg"></div>
+      </div>
+      <aside class="side">
+        <div class="panel"><h3>Pseudo-code</h3><div class="code" id="l-code"></div></div>
+        <div class="panel info" id="l-info"></div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* =============================================================
+   Helpers
+   ============================================================= */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rnd=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const MAXN=30;
+const INT=/^[+-]?\d+$/;
+const INT4=/^[+-]?\d{1,4}$/;
+
+function setMsg(sel,html,err){const el=$(sel);el.innerHTML=html;el.classList.toggle('err',!!err);}
+function renderCode(el,lines,key){
+  el.innerHTML=lines.map(l=>`<div class="ln${key&&l.k.split(' ').indexOf(key)>=0?' on':''}">${esc(l.t)||' '}</div>`).join('');
+}
+function bar(p){
+  return `<div class="bar">
+    <button class="btn icon" id="${p}-reset" title="Back to the first step">⏮</button>
+    <button class="btn icon" id="${p}-prev" title="Step back">◀</button>
+    <button class="btn icon primary" id="${p}-play" title="Play / pause">▶</button>
+    <button class="btn icon" id="${p}-next" title="Step forward">⏵</button>
+    <button class="btn icon" id="${p}-end" title="Jump to the last step">⏭</button>
+    <label class="speed">Speed <input type="range" id="${p}-speed" min="1" max="10" value="5"></label>
+    <span class="count" id="${p}-count"></span>
+  </div>`;
+}
+function wireSeg(id,cb){
+  $('#'+id).addEventListener('click',e=>{
+    const b=e.target.closest('button');
+    if(!b||b.disabled)return;
+    cb(b.dataset.v);
+  });
+}
+function setSeg(id,v){$$('#'+id+' button').forEach(b=>b.classList.toggle('on',b.dataset.v===String(v)));}
+
+$('#a-bar').innerHTML=bar('a');
+$('#l-bar').innerHTML=bar('l');
+
+/* =============================================================
+   Player (pre-computed steps, play / pause / step / scrub)
+   ============================================================= */
+class Player{
+  constructor(p,render,onEnd){
+    this.render=render;this.onEnd=onEnd||function(){};
+    this.steps=[];this.pos=-1;this.timer=null;this.playing=false;this.ended=false;
+    const g=s=>document.getElementById(p+'-'+s);
+    this.el={reset:g('reset'),prev:g('prev'),play:g('play'),next:g('next'),end:g('end'),speed:g('speed'),count:g('count')};
+    this.el.play.onclick=()=>this.playing?this.pause():this.play();
+    this.el.prev.onclick=()=>{this.pause();this.go(this.pos-1);};
+    this.el.next.onclick=()=>{this.pause();this.go(this.pos+1);};
+    this.el.reset.onclick=()=>{this.pause();this.go(0);};
+    this.el.end.onclick=()=>{this.pause();this.go(this.steps.length-1);};
+    this.sync();
+  }
+  delay(){return 1200-(+this.el.speed.value-1)*120;}
+  load(steps){this.pause();this.steps=steps;this.pos=0;this.ended=false;this.show();this.play();}
+  clear(){this.pause();this.steps=[];this.pos=-1;this.ended=false;this.render(null);this.sync();}
+  go(i){if(!this.steps.length)return;this.pos=Math.max(0,Math.min(this.steps.length-1,i));this.show();}
+  show(){
+    this.render(this.steps[this.pos]);this.sync();
+    if(this.pos===this.steps.length-1&&!this.ended){this.ended=true;this.onEnd();}
+  }
+  play(){
+    if(!this.steps.length)return;
+    if(this.pos>=this.steps.length-1){this.pos=0;this.show();}
+    this.playing=true;this.sync();this.tick();
+  }
+  pause(){this.playing=false;clearTimeout(this.timer);this.sync();}
+  tick(){
+    clearTimeout(this.timer);
+    if(!this.playing)return;
+    this.timer=setTimeout(()=>{
+      if(this.pos<this.steps.length-1){this.pos++;this.show();}
+      if(this.pos>=this.steps.length-1)this.pause();else this.tick();
+    },this.delay());
+  }
+  sync(){
+    const n=this.steps.length,has=n>0;
+    this.el.play.textContent=this.playing?'⏸':'▶';
+    this.el.reset.disabled=this.el.prev.disabled=!has||this.pos<=0;
+    this.el.next.disabled=this.el.end.disabled=!has||this.pos>=n-1;
+    this.el.play.disabled=!has;
+    this.el.count.textContent=has?`Step ${this.pos+1} / ${n}`:'No animation yet';
+  }
+}
+
+/* =============================================================
+   ARRAYS: pure algorithm builders (each returns {steps} or {error})
+   ============================================================= */
+const ref=(i,g)=>g.dim===2?`arr[${Math.floor(i/g.cols)}][${i%g.cols}]`:`arr[${i}]`;
+const posText=(i,g)=>g.dim===2?`(${Math.floor(i/g.cols)}, ${i%g.cols}) · flat index ${i}`:`index ${i}`;
+const isSorted=v=>{for(let i=1;i<v.length;i++)if(v[i-1]>v[i])return false;return true;};
+
+function newBuilder(n){
+  const st=Array.from({length:n},()=>({out:0,vis:0,rng:0,jmp:0,pick:0}));
+  const B={n,st,steps:[],comps:0};
+  B.T=(...pairs)=>{const t={};pairs.forEach(([i,s])=>{if(i>=0&&i<n){(t[i]||(t[i]=[])).push(s);}});return t;};
+  B.snap=o=>{
+    const cells=st.map(c=>({out:c.out,vis:c.vis,rng:c.rng,jmp:c.jmp,pick:c.pick,probe:0,found:0,tags:[]}));
+    (o.probe||[]).forEach(i=>{cells[i].probe=1;});
+    (o.found||[]).forEach(i=>{cells[i].found=1;});
+    Object.keys(o.tags||{}).forEach(i=>{if(cells[i])cells[i].tags=o.tags[i];});
+    B.steps.push({cells,msg:o.msg||'',line:o.line||null,comps:B.comps,status:o.status||null,result:o.result||null});
+  };
+  return B;
+}
+const foundStatus=(i,g)=>({t:'ok',text:`Found at ${posText(i,g)}`,idx:i});
+const missStatus={t:'bad',text:'Not found',idx:-1};
+
+/* ---- Python-style spec parsing and slicing ---- */
+function parseSpec(s){
+  s=(s||'').trim();
+  if(s==='')return {kind:'blank'};
+  if(INT.test(s))return {kind:'int',v:parseInt(s,10)};
+  const parts=s.split(':');
+  if(parts.length<2||parts.length>3)return {error:'Use a single integer, or start:stop, or start:stop:step.'};
+  const num=p=>{p=p.trim();if(p==='')return null;if(!INT.test(p))return NaN;return parseInt(p,10);};
+  const [a,b,c]=parts.map(num);
+  if([a,b,c].some(v=>Number.isNaN(v)))return {error:'Every part of a slice must be an integer (or empty).'};
+  if(c===0)return {error:'Slice step cannot be zero.'};
+  return {kind:'slice',start:a,stop:b,step:c===undefined?null:c};
+}
+function sliceIdx(n,start,stop,step){
+  step=step==null?1:step;
+  const adj=(v,d)=>{
+    if(v===null||v===undefined)return d;
+    if(v<0){v+=n;if(v<0)v=step<0?-1:0;}
+    else if(v>=n)v=step<0?n-1:n;
+    return v;
+  };
+  start=adj(start,step<0?n-1:0);
+  stop=adj(stop,step<0?-1:n);
+  const out=[];
+  if(step>0)for(let i=start;i<stop;i+=step)out.push(i);
+  else for(let i=start;i>stop;i+=step)out.push(i);
+  return out;
+}
+
+/* ---- Indexing ---- */
+function buildIndex(a,g,p1,p2){
+  const n=a.length,B=newBuilder(n);
+  if(g.dim===1){
+    if(p1.kind!=='int')return {error:'Indexing needs a single integer such as 3 or -1. Use the Slicing operation for ranges.'};
+    const orig=p1.v;let i=orig;
+    if(i<-n||i>=n)return {error:`IndexError: index ${i} is out of range for length ${n} (valid: ${-n} … ${n-1}).`};
+    B.snap({msg:`Evaluate <code>arr[${orig}]</code> on an array of length ${n}.`,line:'norm'});
+    if(i<0){i+=n;B.snap({msg:`Negative index counts from the end: ${orig} + ${n} = <b>${i}</b>.`,line:'norm',tags:B.T([i,'i'])});}
+    B.snap({found:[i],tags:B.T([i,'i='+i]),msg:`<code>arr[${orig}]</code> = <b>${a[i]}</b>. Random access is O(1): address = base + ${i} × element size.`,line:'get',
+      result:{kind:'scalar',vals:[a[i]],expr:`arr[${orig}]`},status:{t:'ok',text:`arr[${orig}] = ${a[i]}`}});
+    return {steps:B.steps};
+  }
+  const R=g.rows,C=g.cols;
+  if(p1.kind!=='int')return {error:'Row must be a single integer such as 1 or -1. Use Slicing for ranges.'};
+  if(p2.kind!=='int'&&p2.kind!=='blank')return {error:'Column must be an integer, or empty to take the whole row.'};
+  let r=p1.v;const r0=r;
+  if(r<-R||r>=R)return {error:`IndexError: row ${r} is out of range for ${R} rows (valid: ${-R} … ${R-1}).`};
+  B.snap({msg:`Evaluate <code>arr[${r0}]${p2.kind==='int'?`[${p2.v}]`:''}</code> on a ${R} × ${C} array.`,line:'norm'});
+  if(r<0){r+=R;B.snap({msg:`Negative row index: ${r0} + ${R} = <b>${r}</b>.`,line:'norm'});}
+  if(p2.kind==='blank'){
+    const idxs=[];for(let c=0;c<C;c++)idxs.push(r*C+c);
+    idxs.forEach(i=>{B.st[i].pick=1;});
+    B.snap({tags:B.T([r*C,'row '+r]),msg:`<code>arr[${r0}]</code> is the whole row ${r}: [${idxs.map(i=>a[i]).join(', ')}].`,line:'get',
+      result:{kind:'list',vals:idxs.map(i=>a[i]),total:C,expr:`arr[${r0}]`},status:{t:'ok',text:`row ${r}`}});
+    return {steps:B.steps};
+  }
+  let c=p2.v;const c0=c;
+  if(c<-C||c>=C)return {error:`IndexError: column ${c} is out of range for ${C} columns (valid: ${-C} … ${C-1}).`};
+  if(c<0){c+=C;B.snap({msg:`Negative column index: ${c0} + ${C} = <b>${c}</b>.`,line:'norm'});}
+  const flat=r*C+c;
+  B.snap({tags:B.T([flat,'flat']),probe:[flat],msg:`Row-major layout: flat index = r × cols + c = ${r} × ${C} + ${c} = <b>${flat}</b>.`,line:'flat'});
+  B.snap({found:[flat],tags:B.T([flat,`(${r},${c})`]),msg:`<code>arr[${r0}][${c0}]</code> = <b>${a[flat]}</b>. Direct access, O(1).`,line:'get',
+    result:{kind:'scalar',vals:[a[flat]],expr:`arr[${r0}][${c0}]`},status:{t:'ok',text:`arr[${r0}][${c0}] = ${a[flat]}`}});
+  return {steps:B.steps};
+}
+
+/* ---- Slicing ---- */
+function buildSlice(a,g,p1,p2){
+  const n=a.length,one=g.dim===1;
+  if(one&&p1.kind==='int')return buildIndex(a,g,p1,p2);
+  if(!one&&p1.kind==='int'&&p2.kind==='int')return buildIndex(a,g,p1,p2);
+  const B=newBuilder(n);
+  const lab=p=>p.kind==='int'?String(p.v):p.kind==='blank'?':':`${p.start==null?'':p.start}:${p.stop==null?'':p.stop}${p.step==null?'':':'+p.step}`;
+  const full={kind:'slice',start:null,stop:null,step:null};
+  let picks=[],expr,shape,rows=0,cols=0,detail;
+  if(one){
+    const p=p1.kind==='blank'?full:p1;
+    picks=sliceIdx(n,p.start,p.stop,p.step);
+    expr=`arr[${lab(p1)}]`;shape='list';
+    detail=`indices [${picks.join(', ')}]`;
+  }else{
+    const q1=p1.kind==='blank'?full:p1,q2=p2.kind==='blank'?full:p2;
+    const R=g.rows,C=g.cols;
+    const idxOf=(q,len)=>{
+      if(q.kind==='int'){const v=q.v<0?q.v+len:q.v;if(v<0||v>=len)return null;return [v];}
+      return sliceIdx(len,q.start,q.stop,q.step);
+    };
+    const ri=idxOf(q1,R),ci=idxOf(q2,C);
+    if(ri===null)return {error:`IndexError: row ${q1.v} is out of range for ${R} rows.`};
+    if(ci===null)return {error:`IndexError: column ${q2.v} is out of range for ${C} columns.`};
+    ri.forEach(r=>ci.forEach(c=>picks.push(r*C+c)));
+    expr=`arr[${lab(p1)}, ${lab(p2)}]`;
+    if(q1.kind==='int'||q2.kind==='int')shape='list';
+    else{shape='matrix';rows=ri.length;cols=ci.length;}
+    detail=`rows [${ri.join(', ')}] × columns [${ci.join(', ')}]`;
+  }
+  const vals=[];
+  const mk=()=>({kind:shape,vals:vals.slice(),total:picks.length,rows,cols,expr});
+  B.snap({msg:`<code>${esc(expr)}</code> selects ${picks.length} element${picks.length===1?'':'s'}: ${detail}.`,line:'rng'});
+  if(!picks.length){
+    B.snap({msg:`Empty slice: the result is an empty list.`,line:'pick',result:{kind:'list',vals:[],total:0,rows:0,cols:0,expr},status:{t:'ok',text:'0 elements'}});
+    return {steps:B.steps};
+  }
+  picks.forEach((i,k)=>{
+    vals.push(a[i]);
+    B.snap({probe:[i],tags:B.T([i,'#'+(k+1)]),msg:`Copy ${ref(i,g)} = <b>${a[i]}</b> into the result.`,line:'pick',result:mk()});
+    B.st[i].pick=1;
+  });
+  B.snap({msg:`Slice complete: ${picks.length} element${picks.length===1?'':'s'} copied into a new ${shape==='matrix'?'matrix':'list'}.`,line:'pick',result:mk(),status:{t:'ok',text:`${picks.length} element${picks.length===1?'':'s'}`}});
+  return {steps:B.steps};
+}
+
+/* ---- Linear search ---- */
+function buildLinear(a,x,g){
+  const n=a.length,B=newBuilder(n),R=i=>ref(i,g);
+  B.snap({msg:`Linear search for <b>${x}</b>: check the elements one by one${g.dim===2?', row by row':''}.`,line:'loop'});
+  for(let i=0;i<n;i++){
+    B.comps++;
+    if(a[i]===x){
+      B.snap({found:[i],tags:B.T([i,'found']),msg:`${R(i)} = ${a[i]} = ${x} → <b>found</b> at ${posText(i,g)}.`,line:'found',status:foundStatus(i,g)});
+      return {steps:B.steps};
+    }
+    B.snap({probe:[i],tags:B.T([i,'i']),msg:`${R(i)} = ${a[i]} ≠ ${x} → move on.`,line:'cmp'});
+    B.st[i].vis=1;
+  }
+  B.snap({msg:`Reached the end after ${n} comparisons: <b>${x}</b> is not in the array.`,line:'miss',status:missStatus});
+  return {steps:B.steps};
+}
+
+/* ---- Binary search (also the second phase of exponential search) ---- */
+function setRange(B,lo,hi){B.st.forEach((c,i)=>{const inn=i>=lo&&i<=hi;c.rng=inn?1:0;c.out=inn?0:1;});}
+function binCore(B,a,x,lo,hi,g){
+  const R=i=>ref(i,g);
+  while(lo<=hi){
+    setRange(B,lo,hi);
+    const mid=(lo+hi)>>1;
+    B.comps++;
+    const v=a[mid],tags=B.T([lo,'lo'],[hi,'hi'],[mid,'mid']);
+    if(v===x){
+      B.snap({found:[mid],tags,msg:`mid = (${lo} + ${hi}) // 2 = ${mid}; ${R(mid)} = ${v} = ${x} → <b>found</b> at ${posText(mid,g)}.`,line:'found',status:foundStatus(mid,g)});
+      return mid;
+    }
+    const less=v<x;
+    B.snap({probe:[mid],tags,msg:`mid = (${lo} + ${hi}) // 2 = ${mid}; ${R(mid)} = ${v} ${less?'<':'>'} ${x} → keep the ${less?'right':'left'} half.`,line:'mid'});
+    if(less)lo=mid+1;else hi=mid-1;
+    setRange(B,lo,hi);
+    B.snap({tags:B.T([lo,'lo'],[hi,'hi']),msg:`${less?`<code>lo = mid + 1</code> = ${lo}`:`<code>hi = mid - 1</code> = ${hi}`} → ${lo<=hi?`search [${lo}, ${hi}]`:'the range is empty'}.`,line:less?'right':'left'});
+  }
+  B.snap({msg:`<code>lo &gt; hi</code>: nothing left to search, <b>${x}</b> is not in the array.`,line:'miss',status:missStatus});
+  return -1;
+}
+function buildBinary(a,x,g){
+  const n=a.length,B=newBuilder(n);
+  B.snap({tags:B.T([0,'lo'],[n-1,'hi']),msg:`Binary search for <b>${x}</b> in a sorted array of ${n}: halve the range at every step.`,line:'init'});
+  binCore(B,a,x,0,n-1,g);
+  return {steps:B.steps};
+}
+
+/* ---- Jump search ---- */
+function buildJump(a,x,g){
+  const n=a.length,B=newBuilder(n),two=g.dim===2,R=i=>ref(i,g);
+  const half=Math.floor(n/2);
+  const jump=two?g.cols:Math.max(1,Math.floor(half/2));
+  const intro=two
+    ?`2D array: jump by the number of columns (<b>${jump}</b>), i.e. one row per hop.`
+    :`n = ${n}: ${half} element${half===1?'':'s'} on each side of the median → jump = ${half} // 2 = <b>${jump}</b>${Math.floor(half/2)<1?' (minimum 1)':''}.`;
+  B.snap({msg:intro,line:'j'});
+  let prev=0,step=jump;
+  B.snap({tags:B.T([prev,'prev'],[Math.min(step,n)-1,'step']),msg:`<code>prev = ${prev}, step = ${step}</code>: probe the last element of each block.`,line:'init'});
+  for(;;){
+    const pi=Math.min(step,n)-1;
+    B.comps++;
+    const less=a[pi]<x;
+    B.snap({probe:[pi],tags:B.T([prev,'prev'],[pi,'step']),
+      msg:`${R(pi)} = ${a[pi]} ${less?'<':'≥'} ${x} → ${less?'the target is further on: jump':`<b>${x}</b> can only be inside [${prev}, ${pi}]`}.`,line:'probe'});
+    if(!less)break;
+    for(let i=prev;i<pi;i++)B.st[i].out=1;
+    B.st[pi].jmp=1;
+    prev=step;step+=jump;
+    if(prev>=n){
+      B.snap({msg:`<code>prev = ${prev} ≥ n = ${n}</code>: jumped past the end, <b>${x}</b> is not in the array.`,line:'miss',status:missStatus});
+      return {steps:B.steps};
+    }
+    B.snap({tags:B.T([prev,'prev'],[Math.min(step,n)-1,'step']),msg:`Hop: <code>prev = ${prev}, step = ${step}</code>.`,line:'hop'});
+  }
+  const end=Math.min(step,n);
+  for(let i=prev;i<end;i++)B.st[i].rng=1;
+  B.snap({tags:B.T([prev,'prev'],[end-1,'end']),msg:`Linear scan inside block [${prev}, ${end-1}]${two?` (row ${Math.floor(prev/g.cols)})`:''}.`,line:'scan'});
+  for(let i=prev;i<end;i++){
+    B.comps++;
+    if(a[i]===x){
+      B.snap({found:[i],tags:B.T([i,'found']),msg:`${R(i)} = ${a[i]} = ${x} → <b>found</b> at ${posText(i,g)}.`,line:'found',status:foundStatus(i,g)});
+      return {steps:B.steps};
+    }
+    if(a[i]>x){
+      B.snap({probe:[i],tags:B.T([i,'i']),msg:`${R(i)} = ${a[i]} > ${x}: we passed the spot where it would be, so it is not in the array.`,line:'over',status:missStatus});
+      return {steps:B.steps};
+    }
+    B.snap({probe:[i],tags:B.T([i,'i']),msg:`${R(i)} = ${a[i]} ≠ ${x} → next.`,line:'cmp'});
+    B.st[i].vis=1;
+  }
+  B.snap({msg:`Block exhausted: <b>${x}</b> is not in the array.`,line:'end',status:missStatus});
+  return {steps:B.steps};
+}
+
+/* ---- Exponential (double-jump) search ---- */
+function buildExp(a,x,g){
+  const n=a.length,B=newBuilder(n),R=i=>ref(i,g);
+  B.snap({msg:`Exponential (double-jump) search for <b>${x}</b>: double the bound 1, 2, 4, 8, … until it reaches or passes the target, then binary-search the last interval.`,line:'first'});
+  B.comps++;
+  if(a[0]===x){
+    B.snap({found:[0],tags:B.T([0,'found']),msg:`${R(0)} = ${a[0]} = ${x} → <b>found</b> at the very first element.`,line:'first',status:foundStatus(0,g)});
+    return {steps:B.steps};
+  }
+  B.st[0].jmp=1;
+  B.snap({probe:[0],tags:B.T([0,'0']),msg:`${R(0)} = ${a[0]} ≠ ${x}. Start with <code>bound = 1</code>.`,line:'first'});
+  let bound=1;
+  for(;;){
+    if(bound>=n){
+      B.snap({msg:`<code>bound = ${bound} ≥ n = ${n}</code>: stop doubling, the interval ends at the last element.`,line:'grow'});
+      break;
+    }
+    B.comps++;
+    const less=a[bound]<x;
+    B.snap({probe:[bound],tags:B.T([bound,'bound']),msg:`bound = ${bound}: ${R(bound)} = ${a[bound]} ${less?'<':'≥'} ${x} → ${less?'still too small, double the bound':'reached or overshot: the target must be in the last interval'}.`,line:'grow'});
+    B.st[bound].jmp=1;
+    if(!less)break;
+    bound*=2;
+    B.snap({msg:`<code>bound *= 2</code> → ${bound}.`,line:'double'});
+  }
+  const lo=Math.floor(bound/2),hi=Math.min(bound,n-1);
+  setRange(B,lo,hi);
+  B.snap({tags:B.T([lo,'lo'],[hi,'hi']),msg:`Binary search the interval [bound // 2, min(bound, n − 1)] = [${lo}, ${hi}].`,line:'range'});
+  binCore(B,a,x,lo,hi,g);
+  return {steps:B.steps};
+}
+
+/* =============================================================
+   ARRAYS: code listings and info
+   ============================================================= */
+function acode(op,dim){
+  const K=(k,t)=>({k,t});
+  switch(op){
+    case 'index':return dim===1
+      ?[K('norm','n = len(arr)'),K('norm','if i < 0: i += n        # negative index counts from the end'),K('get','value = arr[i]          # O(1): base + i × element_size')]
+      :[K('norm','if r < 0: r += rows'),K('norm','if c < 0: c += cols'),K('flat','flat = r * cols + c     # row-major layout'),K('get','value = arr[r][c]        # O(1) direct access')];
+    case 'slice':return dim===1
+      ?[K('rng','idx = range(*slice(start, stop, step).indices(n))'),K('pick','result = [arr[i] for i in idx]')]
+      :[K('rng','ri = range(*row_slice.indices(rows))'),K('rng','ci = range(*col_slice.indices(cols))'),K('pick','result = [[arr[r][c] for c in ci] for r in ri]')];
+    case 'linear':return [K('loop','def linear_search(arr, x):'),K('loop','    for i in range(len(arr)):'),K('cmp found','        if arr[i] == x: return i'),K('miss','    return -1')];
+    case 'binary':return [
+      K('init','def binary_search(arr, x):'),K('init','    lo, hi = 0, len(arr) - 1'),K('loop','    while lo <= hi:'),
+      K('mid','        mid = (lo + hi) // 2'),K('found','        if arr[mid] == x: return mid'),
+      K('mid','        elif arr[mid] < x:'),K('right','            lo = mid + 1'),K('mid','        else:'),K('left','            hi = mid - 1'),K('miss','    return -1')];
+    case 'jump':return [
+      K('j','def jump_search(arr, x):'),
+      K('j',dim===2?'    jump = cols          # 2D: hop one row at a time':'    jump = max(1, (n // 2) // 2)   # half of each side of the median, halved'),
+      K('init','    prev, step = 0, jump'),
+      K('probe','    while arr[min(step, n) - 1] < x:'),
+      K('hop','        prev, step = step, step + jump'),
+      K('miss','        if prev >= n: return -1'),
+      K('scan','    for i in range(prev, min(step, n)):'),
+      K('cmp found','        if arr[i] == x: return i'),
+      K('over','        if arr[i] > x: break'),
+      K('end','    return -1')];
+    case 'exp':return [
+      K('first','def exponential_search(arr, x):'),K('first','    if arr[0] == x: return 0'),
+      K('grow','    bound = 1'),K('grow','    while bound < len(arr) and arr[bound] < x:'),K('double','        bound *= 2'),
+      K('range','    lo, hi = bound // 2, min(bound, len(arr) - 1)'),
+      K('mid','    while lo <= hi:                # binary search on [lo, hi]'),K('mid','        mid = (lo + hi) // 2'),
+      K('found','        if arr[mid] == x: return mid'),K('right','        elif arr[mid] < x: lo = mid + 1'),K('left','        else: hi = mid - 1'),
+      K('miss','    return -1')];
+  }
+  return [];
+}
+function ainfo(op,g,n){
+  const half=Math.floor(n/2),jmp=Math.max(1,Math.floor(half/2));
+  const T={
+    index:['Indexing','O(1)','Negative indices count from the end (Python style). In 2D the cell sits at flat index r × cols + c. Leave the column empty to take a whole row.'],
+    slice:['Slicing','O(k) for k selected items','Syntax start:stop:step with every part optional; negative values and negative steps work. 2D uses NumPy-style <code>arr[rows, cols]</code>; an integer in one slot collapses that dimension.'],
+    linear:['Linear search','O(n)','Works on unsorted data. In 2D it walks row by row.'],
+    binary:['Binary search','O(log n)','Needs sorted data (row-major order in 2D, treated as one flattened sequence).'],
+    jump:['Jump search','≈ n / jump + jump probes',g.dim===2
+      ?`Needs sorted data. 2D: jump = columns = ${g.cols}, so each hop moves down one row and a linear scan finishes inside that row.`
+      :`Needs sorted data. With n = ${n}, each side of the median holds ${half} element${half===1?'':'s'}, so jump = ${half} // 2 = ${jmp}.`],
+    exp:['Exponential (double-jump) search','O(log i), i = target position','Needs sorted data. The bound doubles 1, 2, 4, 8, … (arrays hold at most 30 elements), then binary search runs inside the last interval.']
+  }[op];
+  return `<div class="t">${T[0]}</div><div>Time: <code>${T[1]}</code></div><p>${T[2]}</p>`;
+}
+
+/* =============================================================
+   ARRAYS: state + UI
+   ============================================================= */
+const DEF_ARR=[3,8,14,21,27,34,42,49,55,63];
+const DEF_SPECS={1:{index:['3',''],slice:['2:8:2','']},2:{index:['1','2'],slice:['0:2','1:4']}};
+const A={dim:1,rows:2,cols:5,vals:DEF_ARR.slice(),op:'index',specs:JSON.parse(JSON.stringify(DEF_SPECS[1]))};
+const geo=()=>({dim:A.dim,rows:A.rows,cols:A.cols});
+const IDLE_A='Choose an operation, then press <b>Run</b>. You can also click any cell and type a new value.';
+const OPNAME={index:'Indexing',slice:'Slicing',linear:'Linear search',binary:'Binary search',jump:'Jump search',exp:'Exponential search'};
+
+function resizeFlat(v,n){
+  const out=v.slice(0,n);
+  while(out.length<n)out.push((out.length?out[out.length-1]:rnd(1,9))+rnd(2,9));
+  return out;
+}
+function randSorted(n){return resizeFlat([],n);}
+function randUnsorted(n){
+  const v=randSorted(n);
+  for(let i=v.length-1;i>0;i--){const j=rnd(0,i);[v[i],v[j]]=[v[j],v[i]];}
+  if(n>1&&isSorted(v)){[v[0],v[1]]=[v[1],v[0]];}
+  return v;
+}
+
+function renderResult(res){
+  const el=$('#a-result');
+  if(!res){el.hidden=true;el.innerHTML='';return;}
+  el.hidden=false;
+  let body='';
+  if(res.kind==='scalar')body=`<div class="chip big">${esc(res.vals[0])}</div>`;
+  else if(res.kind==='matrix'){
+    let cells='';
+    for(let i=0;i<res.rows*res.cols;i++)cells+=i<res.vals.length?`<div class="chip">${esc(res.vals[i])}</div>`:`<div class="chip ph">·</div>`;
+    body=`<div class="mat" style="grid-template-columns:repeat(${res.cols},auto)">${cells}</div>`;
+  }else{
+    const t=res.total==null?res.vals.length:res.total;
+    let cells='';
+    for(let i=0;i<t;i++)cells+=i<res.vals.length?`<div class="chip">${esc(res.vals[i])}</div>`:`<div class="chip ph">·</div>`;
+    body=t?`<div class="chips">${cells}</div>`:`<span class="mono">[ ]</span>`;
+  }
+  el.innerHTML=`<span class="expr">${esc(res.expr)} →</span>${body}`;
+}
+
+function renderArray(step){
+  const n=A.vals.length,cells=step?step.cells:null;
+  const cellHTML=(i,two)=>{
+    const c=cells&&cells[i];
+    const cls=c?['rng','out','vis','pick','jmp','probe','found'].filter(k=>c[k]).join(' '):'';
+    const tags=c&&c.tags.length?`<span class="tags">${c.tags.map(t=>`<span class="tg${/^found/.test(t)?' tg-ok':''}">${esc(t)}</span>`).join('')}</span>`:'';
+    return `<div class="cell ${cls}">${tags}<input class="cv" data-i="${i}" value="${esc(A.vals[i])}" maxlength="4" inputmode="numeric" spellcheck="false" aria-label="element ${i}">${two?`<i class="fl">${i}</i>`:''}</div>`;
+  };
+  let html;
+  if(A.dim===1){
+    html='<div class="arr1d">'+A.vals.map((_,i)=>`<div class="cw">${cellHTML(i,false)}<div class="idx">${i}</div></div>`).join('')+'</div>';
+  }else{
+    const R=A.rows,C=A.cols;
+    let h=`<div class="arr2d" style="grid-template-columns:30px repeat(${C},58px)"><div class="hd">r\\c</div>`;
+    for(let c=0;c<C;c++)h+=`<div class="hd">${c}</div>`;
+    for(let r=0;r<R;r++){h+=`<div class="hd">${r}</div>`;for(let c=0;c<C;c++)h+=cellHTML(r*C+c,true);}
+    html=h+'</div>';
+  }
+  $('#a-stage').innerHTML=html;
+  $('#a-title').textContent=A.dim===1?`1D array · length ${n}`:`2D array · ${A.rows} × ${A.cols}`;
+  const isSearch=!(A.op==='index'||A.op==='slice');
+  const b=$('#a-status');
+  if(step){
+    const s=step.status;
+    b.className='badge'+(s?' '+s.t:'');
+    b.textContent=s?s.text:'Running…';
+  }else{b.className='badge';b.textContent='Ready';}
+  $('#a-stat').textContent=step&&isSearch?`Comparisons: ${step.comps}`:'';
+  renderResult(step&&step.result);
+  if(step||!$('#a-msg').classList.contains('err'))setMsg('#a-msg',step?step.msg:IDLE_A,false);
+  renderCode($('#a-code'),acode(A.op,A.dim),step&&step.line);
+  $('#a-info').innerHTML=ainfo(A.op,geo(),n);
+}
+
+A.player=new Player('a',renderArray,null);
+
+function syncArrayInputs(){
+  $('#a-len').value=A.dim===1?A.vals.length:A.rows*A.cols;
+  $('#a-rows').value=A.rows;$('#a-cols').value=A.cols;
+  $('#a-values').value=A.vals.join(', ');
+  setSeg('a-dim',A.dim);
+  $('#a-size1').hidden=A.dim!==1;$('#a-size2').hidden=A.dim!==2;
+  updateArrayFields();
+}
+function updateArrayFields(){
+  const isSpec=A.op==='index'||A.op==='slice';
+  $('#a-spec-wrap').hidden=!isSpec;$('#a-target-wrap').hidden=isSpec;
+  $('#a-s2').hidden=$('#a-comma').hidden=A.dim===1;
+  if(isSpec){
+    const sp=A.specs[A.op];
+    $('#a-s1').value=sp[0];$('#a-s2').value=sp[1];
+    const slice=A.op==='slice';
+    $('#a-s1').placeholder=A.dim===1?(slice?'start:stop:step':'i, e.g. 3 or -1'):(slice?'rows, e.g. 0:2':'row');
+    $('#a-s2').placeholder=slice?'cols, e.g. 1:4':'col (empty = row)';
+    $('#a-spec-label').textContent=slice?(A.dim===1?'Slice':'Slice (NumPy style: rows, columns)'):(A.dim===1?'Index':'Index (row, column)');
+  }
+}
+function invalidateArray(){A.player.clear();}
+function arrayError(html){A.player.pause();setMsg('#a-msg',html,true);}
+
+function setDim(d){
+  d=+d;if(d===A.dim)return;
+  const n=A.vals.length;
+  if(d===2){
+    let rows=1;
+    for(let r=Math.floor(Math.sqrt(n));r>=1;r--){if(n%r===0){rows=r;break;}}
+    A.rows=rows;A.cols=n/rows;
+  }
+  A.dim=d;
+  A.specs=JSON.parse(JSON.stringify(DEF_SPECS[d]));
+  syncArrayInputs();invalidateArray();
+}
+function applySize(){
+  if(A.dim===1){
+    const t=$('#a-len').value.trim();
+    if(!/^\d+$/.test(t)||+t<1||+t>MAXN){arrayError(`Length must be a whole number from 1 to ${MAXN}.`);return;}
+    A.vals=resizeFlat(A.vals,+t);
+  }else{
+    const r=$('#a-rows').value.trim(),c=$('#a-cols').value.trim();
+    if(!/^\d+$/.test(r)||!/^\d+$/.test(c)||+r<1||+c<1||+r*+c>MAXN){arrayError(`Rows and columns must be whole numbers ≥ 1 with rows × cols ≤ ${MAXN}.`);return;}
+    A.rows=+r;A.cols=+c;A.vals=resizeFlat(A.vals,A.rows*A.cols);
+  }
+  A.player.clear();syncArrayInputs();invalidateArray();
+}
+function setValues(){
+  const parts=$('#a-values').value.split(/[\s,;]+/).filter(Boolean);
+  if(!parts.length||parts.some(p=>!INT4.test(p))){arrayError('Enter integers (up to 4 digits each) separated by commas.');return;}
+  if(parts.length>MAXN){arrayError(`At most ${MAXN} values are allowed.`);return;}
+  const v=parts.map(Number);
+  if(A.dim===2&&v.length!==A.rows*A.cols){arrayError(`A ${A.rows} × ${A.cols} array needs exactly ${A.rows*A.cols} values (you gave ${v.length}).`);return;}
+  A.vals=v;syncArrayInputs();invalidateArray();
+}
+
+function runArray(){
+  const a=A.vals.slice(),g=geo(),op=A.op;
+  let out;
+  if(op==='index'||op==='slice'){
+    const p1=parseSpec($('#a-s1').value),p2=g.dim===2?parseSpec($('#a-s2').value):{kind:'blank'};
+    if(p1.error){arrayError(esc(p1.error));return;}
+    if(p2.error){arrayError(esc(p2.error));return;}
+    if(op==='index'){
+      if(p1.kind==='blank'){arrayError('Type an index first.');return;}
+      if(p1.kind==='slice'||p2.kind==='slice'){arrayError('That is a slice. Switch to the Slicing operation, or use plain integers here.');return;}
+      out=buildIndex(a,g,p1,p2);
+    }else out=buildSlice(a,g,p1,p2);
+  }else{
+    const t=$('#a-target').value.trim();
+    if(!INT.test(t)){arrayError('Enter an integer target value.');return;}
+    const x=parseInt(t,10);
+    if(op!=='linear'&&!isSorted(a)){arrayError(`${OPNAME[op]} needs a sorted array${g.dim===2?' (row-major order)':''}. Press <b>Sort</b> first, or try Linear search.`);return;}
+    out={linear:buildLinear,binary:buildBinary,jump:buildJump,exp:buildExp}[op](a,x,g);
+  }
+  if(out.error){arrayError(out.error);return;}
+  setMsg('#a-msg','',false);
+  A.player.load(out.steps);
+}
+
+/* array events */
+wireSeg('a-dim',setDim);
+wireSeg('a-op',v=>{A.op=v;setSeg('a-op',v);updateArrayFields();invalidateArray();});
+$('#a-resize').onclick=applySize;
+$('#a-setvals').onclick=setValues;
+$('#a-rand-sorted').onclick=()=>{A.vals=randSorted(A.vals.length);syncArrayInputs();invalidateArray();};
+$('#a-rand-unsorted').onclick=()=>{A.vals=randUnsorted(A.vals.length);syncArrayInputs();invalidateArray();};
+$('#a-sort').onclick=()=>{A.vals.sort((x,y)=>x-y);syncArrayInputs();invalidateArray();};
+$('#a-pick').onclick=()=>{$('#a-target').value=A.vals[rnd(0,A.vals.length-1)];};
+$('#a-run').onclick=runArray;
+['#a-s1','#a-s2','#a-target','#a-values','#a-len','#a-rows','#a-cols'].forEach(s=>{
+  $(s).addEventListener('keydown',e=>{
+    if(e.key!=='Enter')return;
+    if(s==='#a-values')setValues();
+    else if(s==='#a-len'||s==='#a-rows'||s==='#a-cols')applySize();
+    else runArray();
+  });
+});
+$('#a-s1').addEventListener('input',()=>{if(A.specs[A.op])A.specs[A.op][0]=$('#a-s1').value;});
+$('#a-s2').addEventListener('input',()=>{if(A.specs[A.op])A.specs[A.op][1]=$('#a-s2').value;});
+$('#a-stage').addEventListener('change',e=>{
+  const t=e.target;
+  if(!t.classList||!t.classList.contains('cv'))return;
+  const v=t.value.trim();
+  if(INT4.test(v)){A.vals[+t.dataset.i]=parseInt(v,10);syncArrayInputs();}
+  invalidateArray();
+});
+
+/* =============================================================
+   LINKED LISTS: model + step builder
+   ============================================================= */
+function makeList(vals){
+  const M={nodes:{},head:null,tail:null,nextId:1};
+  let prev=null;
+  vals.forEach(v=>{
+    const id=M.nextId++;
+    M.nodes[id]={id,val:v,next:null,prev:prev};
+    if(prev!==null)M.nodes[prev].next=id;else M.head=id;
+    prev=id;
+  });
+  M.tail=prev;
+  return M;
+}
+const cloneM=M=>JSON.parse(JSON.stringify(M));
+function orderOf(M){
+  const out=[],seen=new Set();
+  let c=M.head;
+  while(c!==null&&c!==undefined&&!seen.has(c)&&M.nodes[c]){out.push(c);seen.add(c);c=M.nodes[c].next;}
+  return out;
+}
+const valsOf=M=>orderOf(M).map(id=>M.nodes[id].val);
+function layoutIds(M,floats){
+  const ord=orderOf(M);
+  floats.filter(f=>M.nodes[f.id]).slice().sort((a,b)=>a.slot-b.slot).forEach(f=>{
+    if(ord.indexOf(f.id)<0)ord.splice(Math.min(f.slot,ord.length),0,f.id);
+  });
+  return ord;
+}
+
+function llCode(kind,op,branch,byVal){
+  const d=kind==='doubly',K=(k,t)=>({k,t});
+  if(op==='insert'){
+    if(branch==='head')return [K('create','new = Node(v)'),K('link_next','new.next = head'),...(d?[K('link_prev','if head: head.prev = new')]:[]),K('sethead','head = new'),K('settail','if tail is None: tail = new')];
+    if(branch==='tail')return [K('create','new = Node(v)'),...(d?[K('link_prev','new.prev = tail')]:[]),K('link','tail.next = new'),K('settail','tail = new')];
+    return d
+      ?[K('walk','succ = node_at(i)      # walk from the nearer end'),K('pred','pred = succ.prev'),K('create','new = Node(v)'),K('link_next','new.next = succ'),K('link_prev','new.prev = pred'),K('link','pred.next = new'),K('link_back','succ.prev = new')]
+      :[K('walk','curr = head'),K('walk','for _ in range(i - 1): curr = curr.next'),K('create','new = Node(v)'),K('link_next','new.next = curr.next'),K('link','curr.next = new')];
+  }
+  if(op==='delete'){
+    const free=K('free','free(target)');
+    const search=byVal?(d
+      ?[K('walk','curr = head'),K('walk','while curr and curr.val != v:'),K('walk','    curr = curr.next'),K('miss','if curr is None: return   # not found')]
+      :[K('walk','prev, curr = None, head'),K('walk','while curr and curr.val != v:'),K('walk','    prev, curr = curr, curr.next'),K('miss','if curr is None: return   # not found')]):[];
+    if(branch==='head')return [...search,K('target',byVal?'target = curr':'target = head'),K('sethead','head = target.next'),...(d?[K('unlink_prev','if head: head.prev = None')]:[]),K('settail','if head is None: tail = None'),free];
+    if(branch==='tail'){
+      if(d)return [...search,K('target',byVal?'target = curr':'target = tail'),K('settail','tail = target.prev'),K('unlink','tail.next = None'),free];
+      return [...(byVal?search:[K('walk','curr = head'),K('walk','while curr.next is not tail: curr = curr.next')]),K('target',byVal?'target = curr':'target = tail'),K('unlink',byVal?'prev.next = None':'curr.next = None'),K('settail',byVal?'tail = prev':'tail = curr'),free];
+    }
+    if(d)return [...(byVal?search:[K('walk','target = node_at(i)    # walk from the nearer end')]),K('target',byVal?'target = curr':'pred, succ = target.prev, target.next'),...(byVal?[K('target','pred, succ = target.prev, target.next')]:[]),K('unlink','pred.next = succ'),K('unlink_prev','succ.prev = pred'),free];
+    return [...(byVal?search:[K('walk','curr = head'),K('walk','for _ in range(i - 1): curr = curr.next')]),K('target',byVal?'target = curr':'target = curr.next'),K('unlink',byVal?'prev.next = target.next':'curr.next = target.next'),free];
+  }
+  if(branch==='head')return [K('target','curr = head'),K('set','curr.val = v')];
+  if(branch==='tail')return [K('target','curr = tail'),K('set','curr.val = v')];
+  if(branch==='index')return [K('walk','curr = head'+(d?'          # or tail, whichever is nearer':'')),K('walk','for _ in range(i): curr = curr.next'),K('set','curr.val = v')];
+  return [K('walk','curr = head'),K('walk','while curr and curr.val != old: curr = curr.next'),K('miss','if curr is None: return   # not found'),K('set','curr.val = v')];
+}
+function llInfo(kind,op,branch){
+  const d=kind==='doubly';
+  let t,note;
+  if(op==='insert'){
+    if(branch==='head'){t='O(1)';note='No traversal: only the head pointer (and the old head’s back pointer) change.';}
+    else if(branch==='tail'){t='O(1)';note='The tail pointer lets us append without walking the list.';}
+    else{t='O(n)';note=d?'Walk from whichever end is nearer (at most n / 2 hops), then rewire four pointers.':'Walk to the node before the insertion point, then rewire two pointers.';}
+  }else if(op==='delete'){
+    if(branch==='head'){t='O(1)';note='Move head forward; nothing has to be walked.';}
+    else if(branch==='tail'){
+      if(d){t='O(1)';note='<code>tail.prev</code> hands us the new tail directly.';}
+      else{t='O(n)';note='A singly linked list has no back pointer, so we must walk to the second-to-last node first.';}
+    }else{t='O(n)';note=d?'Locate the node (from the nearer end when the index is known), then bypass it in both directions.':'Walk to the predecessor, then point it past the target.';}
+  }else{
+    if(branch==='head'||branch==='tail'){t='O(1)';note='Head and tail pointers give direct access to the end nodes.';}
+    else{t='O(n)';note=branch==='value'?'Search from the head until the value matches.':(d?'Walk from the nearer end, then overwrite the value.':'Walk from the head, then overwrite the value.');}
+  }
+  const nm=op[0].toUpperCase()+op.slice(1);
+  return `<div class="t">${d?'Doubly':'Singly'} linked list · ${nm}</div><div>Time: <code>${t}</code></div><p>${note}</p>`;
+}
+
+function buildLL(M0,kind,op,pos,vTxt,iTxt,fTxt){
+  const doubly=kind==='doubly';
+  const M=cloneM(M0),steps=[];
+  let hops=0,code=[],info='';
+  const ord0=orderOf(M),n=ord0.length;
+  const E=m=>({error:m});
+
+  /* validate */
+  let v=null,idx=null,f=null;
+  if(op==='insert'||op==='update'){
+    if(!INT4.test((vTxt||'').trim()))return E('Enter an integer value (up to 4 digits).');
+    v=parseInt(vTxt,10);
+  }
+  if(op==='insert'&&pos==='value')return E('Insert supports Head, Tail or Index.');
+  if(op!=='insert'&&n===0)return E(`The list is empty, so there is nothing to ${op}.`);
+  if(op==='insert'&&n>=MAXN)return E(`The list is full (max ${MAXN} nodes).`);
+  if(pos==='index'){
+    if(!/^\d+$/.test((iTxt||'').trim()))return E('Enter a non-negative whole number as the index.');
+    idx=parseInt(iTxt,10);
+    const max=op==='insert'?n:n-1;
+    if(idx>max)return E(`Index out of range: valid indices are 0 … ${max}.`);
+  }
+  if(pos==='value'){
+    if(!INT4.test((fTxt||'').trim()))return E('Enter an integer to look for (up to 4 digits).');
+    f=parseInt(fTxt,10);
+  }
+
+  const snap=o=>{steps.push({M:cloneM(M),states:o.states||{},tags:o.tags||{},links:o.links||{},floats:o.floats||[],msg:o.msg||'',line:o.line||null,hops,badge:o.badge||null});};
+  const done=(msg,states,badge)=>{
+    snap({states:states||{},msg,badge:badge||{t:'ok',text:'Done'}});
+    return {steps,final:cloneM(M),code,info};
+  };
+
+  function walk(k,fromTail){
+    const ord=orderOf(M);
+    let i=fromTail?ord.length-1:0;
+    const dir=fromTail?-1:1,start=i,visited={};
+    for(;;){
+      const id=ord[i];hops++;
+      const states=Object.assign({},visited,{[id]:'curr'});
+      const tags={[id]:['curr']};
+      if(!fromTail&&!doubly&&i>0)tags[ord[i-1]]=['prev'];
+      const msg=(i===start
+        ?`<code>curr = ${fromTail?'tail':'head'}</code> (index ${i})${fromTail?' — starting at the tail because it is nearer':''}`
+        :`<code>curr = curr.${fromTail?'prev':'next'}</code> → index ${i}`)+(i===k?' — reached.':'');
+      snap({states,tags,msg,line:'walk'});
+      if(i===k)return id;
+      visited[id]='visited';i+=dir;
+    }
+  }
+  function searchWalk(val){
+    const ord=orderOf(M),visited={};
+    for(let i=0;i<ord.length;i++){
+      const id=ord[i];hops++;
+      const hit=M.nodes[id].val===val;
+      const states=Object.assign({},visited,{[id]:hit?'found':'curr'});
+      const tags={[id]:['curr']};
+      if(!doubly&&i>0)tags[ord[i-1]]=['prev'];
+      snap({states,tags,msg:`<code>curr.val</code> = ${M.nodes[id].val} ${hit?'=':'≠'} ${val}${hit?` → match at index ${i}`:' → next'}`,line:'walk'});
+      if(hit)return {id,idx:i};
+      visited[id]='visited';
+    }
+    snap({msg:`Reached the end (<code>None</code>): <b>${val}</b> is not in the list.`,line:'miss',badge:{t:'bad',text:'Not found'}});
+    return null;
+  }
+
+  /* ---------------- INSERT ---------------- */
+  if(op==='insert'){
+    const k=pos==='head'?0:pos==='tail'?n:idx;
+    const id=M.nextId++;
+    const addNode=()=>{M.nodes[id]={id,val:v,next:null,prev:null};};
+    const NEW=(extra)=>Object.assign({floats:[{id,slot:k}],states:{[id]:'new'},tags:{[id]:['new']}},extra);
+    snap({msg:`Insert <b>${v}</b> at ${k===0?'the head':k===n?'the tail':'index '+k}.`});
+    if(k===0){
+      code=llCode(kind,'insert','head');info=llInfo(kind,'insert','head');
+      addNode();
+      snap(NEW({msg:`Create <code>new = Node(${v})</code>. It is not linked yet.`,line:'create'}));
+      if(M.head!==null){
+        M.nodes[id].next=M.head;
+        snap(NEW({links:{[id+'.next']:'new'},msg:'<code>new.next = head</code>',line:'link_next'}));
+        if(doubly){
+          M.nodes[M.head].prev=id;
+          snap(NEW({links:{[id+'.next']:'new',[M.head+'.prev']:'new'},msg:'<code>head.prev = new</code>',line:'link_prev'}));
+        }
+      }
+      M.head=id;
+      snap(NEW({msg:'<code>head = new</code>',line:'sethead'}));
+      if(M.tail===null){M.tail=id;snap(NEW({msg:'The list was empty, so <code>tail = new</code> as well.',line:'settail'}));}
+      return done(`Inserted <b>${v}</b> at the head. Size is now ${n+1}.`,{[id]:'done'});
+    }
+    if(k===n){
+      code=llCode(kind,'insert','tail');info=llInfo(kind,'insert','tail');
+      addNode();
+      snap(NEW({msg:`Create <code>new = Node(${v})</code>. It is not linked yet.`,line:'create'}));
+      if(doubly){
+        M.nodes[id].prev=M.tail;
+        snap(NEW({links:{[id+'.prev']:'new'},msg:'<code>new.prev = tail</code>',line:'link_prev'}));
+      }
+      const oldTail=M.tail;
+      M.nodes[oldTail].next=id;
+      snap(NEW({links:{[oldTail+'.next']:'hot',[id+'.prev']:'new'},msg:'<code>tail.next = new</code>',line:'link'}));
+      M.tail=id;
+      snap(NEW({msg:'<code>tail = new</code>',line:'settail'}));
+      return done(`Appended <b>${v}</b> at the tail. Size is now ${n+1}.`,{[id]:'done'});
+    }
+    code=llCode(kind,'insert','mid');info=llInfo(kind,'insert','mid');
+    if(!doubly){
+      const pred=walk(k-1,false);
+      addNode();
+      const st={[id]:'new',[pred]:'curr'},tg={[id]:['new'],[pred]:['curr']};
+      snap(NEW({states:st,tags:tg,msg:`Create <code>new = Node(${v})</code>. It is not linked yet.`,line:'create'}));
+      M.nodes[id].next=M.nodes[pred].next;
+      snap(NEW({states:st,tags:tg,links:{[id+'.next']:'new'},msg:'<code>new.next = curr.next</code>',line:'link_next'}));
+      M.nodes[pred].next=id;
+      snap(NEW({states:st,tags:tg,links:{[pred+'.next']:'hot',[id+'.next']:'new'},msg:'<code>curr.next = new</code>',line:'link'}));
+    }else{
+      const succ=walk(k,(n-1-k)<k),pred=M.nodes[succ].prev;
+      addNode();
+      const st={[id]:'new',[succ]:'curr'},tg={[id]:['new'],[succ]:['succ'],[pred]:['pred']};
+      snap(NEW({states:st,tags:tg,msg:`Create <code>new = Node(${v})</code>; <code>pred = succ.prev</code>.`,line:'create'}));
+      M.nodes[id].next=succ;
+      snap(NEW({states:st,tags:tg,links:{[id+'.next']:'new'},msg:'<code>new.next = succ</code>',line:'link_next'}));
+      M.nodes[id].prev=pred;
+      snap(NEW({states:st,tags:tg,links:{[id+'.next']:'new',[id+'.prev']:'new'},msg:'<code>new.prev = pred</code>',line:'link_prev'}));
+      M.nodes[pred].next=id;
+      snap(NEW({states:st,tags:tg,links:{[pred+'.next']:'hot',[id+'.next']:'new',[id+'.prev']:'new'},msg:'<code>pred.next = new</code>',line:'link'}));
+      M.nodes[succ].prev=id;
+      snap(NEW({states:st,tags:tg,links:{[succ+'.prev']:'hot',[pred+'.next']:'hot'},msg:'<code>succ.prev = new</code>',line:'link_back'}));
+    }
+    return done(`Inserted <b>${v}</b> at index ${k}. Size is now ${n+1}.`,{[id]:'done'});
+  }
+
+  /* ---------------- DELETE ---------------- */
+  if(op==='delete'){
+    snap({msg:`Delete the node ${pos==='head'?'at the head':pos==='tail'?'at the tail':pos==='index'?'at index '+idx:'whose value is '+f}.`});
+    const byVal=pos==='value';
+    let tIdx,target,pred=null;
+    if(byVal){
+      code=llCode(kind,'delete','mid',true);info=llInfo(kind,'delete','mid');
+      const r=searchWalk(f);
+      if(!r)return done(`Value <b>${f}</b> not found. The list is unchanged.`,{},{t:'bad',text:'Not found'});
+      target=r.id;tIdx=r.idx;pred=tIdx>0?ord0[tIdx-1]:null;
+    }else{
+      tIdx=pos==='head'?0:pos==='tail'?n-1:idx;
+      if(tIdx===0)target=M.head;
+      else if(!doubly){pred=walk(tIdx-1,false);target=M.nodes[pred].next;}
+      else{
+        target=tIdx===n-1?M.tail:walk(tIdx,(n-1-tIdx)<tIdx);
+        pred=M.nodes[target].prev;
+      }
+    }
+    const T=M.nodes[target],tval=T.val;
+    const isHead=M.head===target,isTail=M.tail===target;
+    const branch=isHead?'head':isTail?'tail':'mid';
+    code=llCode(kind,'delete',branch,byVal);info=llInfo(kind,'delete',branch);
+    snap({states:{[target]:'remove'},tags:{[target]:['target']},msg:`Target found: node <b>${tval}</b> (index ${tIdx}).`,line:'target'});
+    const fl=[{id:target,slot:tIdx}];
+    const ghost={[target+'.next']:'ghost'};if(doubly)ghost[target+'.prev']='ghost';
+    const S=(o)=>snap(Object.assign({floats:fl,states:{[target]:'remove'},tags:{[target]:['target']}},o));
+    if(isHead){
+      const nh=T.next;M.head=nh;if(nh===null)M.tail=null;
+      S({links:Object.assign({},ghost,nh!==null&&doubly?{[nh+'.prev']:'hot'}:{}),msg:'<code>head = target.next</code>',line:'sethead'});
+      if(nh===null)S({links:ghost,msg:'The list is now empty: <code>tail = None</code>.',line:'settail'});
+      else if(doubly){M.nodes[nh].prev=null;S({links:ghost,msg:'<code>head.prev = None</code>',line:'unlink_prev'});}
+    }else if(isTail){
+      if(!doubly){
+        M.nodes[pred].next=null;
+        S({links:ghost,msg:'<code>curr.next = None</code>',line:'unlink'});
+        M.tail=pred;
+        S({links:ghost,msg:'<code>tail = curr</code>',line:'settail'});
+      }else{
+        M.tail=pred;
+        S({links:ghost,msg:'<code>tail = target.prev</code>',line:'settail'});
+        M.nodes[pred].next=null;
+        S({links:ghost,msg:'<code>tail.next = None</code>',line:'unlink'});
+      }
+    }else{
+      const succ=T.next;
+      M.nodes[pred].next=succ;
+      S({links:Object.assign({},ghost,{[pred+'.next']:'hot'}),msg:doubly?'<code>pred.next = succ</code>':'<code>curr.next = target.next</code> (bypass the target)',line:'unlink'});
+      if(doubly){
+        M.nodes[succ].prev=pred;
+        S({links:Object.assign({},ghost,{[succ+'.prev']:'hot',[pred+'.next']:'hot'}),msg:'<code>succ.prev = pred</code>',line:'unlink_prev'});
+      }
+    }
+    snap({floats:fl,states:{[target]:'gone'},tags:{[target]:['freed']},links:ghost,msg:`Nothing points to node <b>${tval}</b> any more, so it is freed.`,line:'free'});
+    delete M.nodes[target];
+    return done(`Deleted <b>${tval}</b>. Size is now ${n-1}.`);
+  }
+
+  /* ---------------- UPDATE ---------------- */
+  {
+    snap({msg:`Update the node ${pos==='head'?'at the head':pos==='tail'?'at the tail':pos==='index'?'at index '+idx:'whose value is '+f} to <b>${v}</b>.`});
+    code=llCode(kind,'update',pos);info=llInfo(kind,'update',pos);
+    let tIdx,target;
+    if(pos==='head'){
+      tIdx=0;target=M.head;hops++;
+      snap({states:{[target]:'curr'},tags:{[target]:['curr']},msg:'<code>curr = head</code>',line:'target'});
+    }else if(pos==='tail'){
+      tIdx=n-1;target=M.tail;hops++;
+      snap({states:{[target]:'curr'},tags:{[target]:['curr']},msg:'<code>curr = tail</code>',line:'target'});
+    }else if(pos==='index'){
+      tIdx=idx;target=walk(idx,doubly&&(n-1-idx)<idx);
+    }else{
+      const r=searchWalk(f);
+      if(!r)return done(`Value <b>${f}</b> not found. The list is unchanged.`,{},{t:'bad',text:'Not found'});
+      target=r.id;tIdx=r.idx;
+    }
+    const old=M.nodes[target].val;
+    M.nodes[target].val=v;
+    snap({states:{[target]:'done'},tags:{[target]:['curr']},msg:`<code>curr.val = ${v}</code> (was ${old}).`,line:'set'});
+    return done(`Updated index ${tIdx}: <b>${old}</b> → <b>${v}</b>.`,{[target]:'done'});
+  }
+}
+
+/* =============================================================
+   LINKED LISTS: rendering (SVG)
+   ============================================================= */
+const NH=46,GAP=48,ROWH=200,PADX=40,PADY=70,FLOAT=58;
+const NODE_COL={'':['#ffffff','#94a3b8'],visited:['#f1f5f9','#94a3b8'],curr:['#fef3c7','#f59e0b'],new:['#dcfce7','#16a34a'],remove:['#fee2e2','#dc2626'],gone:['#fef2f2','#fca5a5'],done:['#bbf7d0','#16a34a'],found:['#bbf7d0','#16a34a']};
+const LINK_COL={n:'#475569',hot:'#ea580c',new:'#0284c7',ghost:'#cbd5e1'};
+const PILL={HEAD:['#e0e7ff','#3730a3'],TAIL:['#e0e7ff','#3730a3'],curr:['#fde68a','#92400e'],prev:['#dbeafe','#1e40af'],pred:['#dbeafe','#1e40af'],succ:['#ede9fe','#5b21b6'],new:['#bbf7d0','#166534'],target:['#fecaca','#991b1b'],freed:['#fee2e2','#991b1b']};
+
+const DEF_LL=[12,7,33,5,48,21,9,60,17,26];
+const L={kind:'singly',op:'insert',pos:'index',model:makeList(DEF_LL),pending:null,code:[],lastStep:null};
+const IDLE_L='Pick an operation and press <b>Run</b>. Each pointer change is shown as its own step.';
+
+function renderLL(step){
+  L.lastStep=step||null;
+  const M=step?step.M:L.model;
+  const st=step?step.states:{},tg=step?step.tags:{},lk=step?step.links:{},fl=step?step.floats:[];
+  const d=L.kind==='doubly';
+  const PW=38,DW=62,NW=d?PW+DW+PW:DW+PW;
+  const host=$('#l-stage');
+  const W=Math.max(320,host.clientWidth||900);
+  const perRow=Math.max(3,Math.floor((W-2*PADX+GAP)/(NW+GAP)));
+  const ids=layoutIds(M,fl),fset=new Set(fl.map(f=>f.id));
+  const pos={};
+  ids.forEach((id,s)=>{
+    const row=Math.floor(s/perRow),col=s%perRow,by=PADY+row*ROWH;
+    pos[id]={x:PADX+col*(NW+GAP),y:by+(fset.has(id)?FLOAT:0),by,row};
+  });
+  const rows=Math.max(1,Math.ceil(ids.length/perRow));
+  const colsUsed=Math.min(perRow,Math.max(ids.length,1));
+  const width=Math.max(PADX*2+colsUsed*NW+(colsUsed-1)*GAP,360);
+  const height=PADY+(rows-1)*ROWH+FLOAT+NH+30;
+  const nextLane=p=>p.y+(d?NH*0.32:NH*0.5),prevLane=p=>p.y+NH*0.68;
+
+  const link=(id,field)=>{
+    const n=M.nodes[id],tid=n[field];
+    if(tid===null||tid===undefined||!pos[tid])return '';
+    const a=pos[id],b=pos[tid],style=lk[id+'.'+field]||'n',isN=field==='next';
+    const sx=isN?a.x+NW-PW/2:a.x+PW/2,sy=isN?nextLane(a):prevLane(a);
+    const ex=isN?b.x-2:b.x+NW+2,ey=isN?nextLane(b):prevLane(b);
+    let dd;
+    if(isN&&b.row>a.row){
+      const xr=a.x+NW+14,ym=a.by+FLOAT+NH+16,xl=PADX-16;
+      dd=`M${sx} ${sy} H${xr} V${ym} H${xl} V${ey} H${ex}`;
+    }else if(!isN&&b.row<a.row){
+      const xl=PADX-28,ym=b.by+FLOAT+NH+30,xr=b.x+NW+28;
+      dd=`M${sx} ${sy} H${xl} V${ym} H${xr} V${ey} H${ex}`;
+    }else dd=`M${sx} ${sy} L${ex} ${ey}`;
+    const dash=style==='new'?' stroke-dasharray="6 4"':style==='ghost'?' stroke-dasharray="4 4"':'';
+    return `<path d="${dd}" fill="none" stroke="${LINK_COL[style]}" stroke-width="${style==='hot'||style==='new'?2.4:1.8}"${dash} marker-end="url(#ah-${style})"/>`;
+  };
+  const ptr=(id,field)=>{
+    const n=M.nodes[id],p=pos[id],isN=field==='next',t=n[field];
+    const cx=isN?p.x+NW-PW/2:p.x+PW/2;
+    if(t===null||t===undefined)return `<text x="${cx}" y="${p.y+NH/2+5}" text-anchor="middle" class="nul">∅</text>`;
+    const cy=isN?nextLane(p):prevLane(p);
+    return `<circle cx="${cx}" cy="${cy}" r="4.2" fill="${LINK_COL[lk[id+'.'+field]||'n']}"/>`;
+  };
+  const nodeSVG=id=>{
+    const n=M.nodes[id],p=pos[id],s=st[id]||'';
+    const [fill,stroke]=NODE_COL[s]||NODE_COL[''];
+    const x=p.x,y=p.y,dx=d?x+PW:x;
+    let o=`<g class="nd${s?' st-'+s:''}"><rect x="${x}" y="${y}" width="${NW}" height="${NH}" rx="9" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+    if(d)o+=`<line x1="${dx}" y1="${y}" x2="${dx}" y2="${y+NH}" stroke="${stroke}" stroke-width="1.5"/>`;
+    o+=`<line x1="${dx+DW}" y1="${y}" x2="${dx+DW}" y2="${y+NH}" stroke="${stroke}" stroke-width="1.5"/>`;
+    o+=`<text x="${dx+DW/2}" y="${y+NH/2+5}" text-anchor="middle" class="nv">${esc(n.val)}</text>`;
+    o+=ptr(id,'next');if(d)o+=ptr(id,'prev');
+    return o+'</g>';
+  };
+  const pills=id=>{
+    const p=pos[id],list=[];
+    if(M.head===id)list.push('HEAD');
+    if(M.tail===id)list.push('TAIL');
+    (tg[id]||[]).forEach(t=>list.push(t));
+    let o='';
+    list.forEach((t,i)=>{
+      const [bg,fg]=PILL[t]||['#e2e8f0','#334155'];
+      const w=t.length*6.9+14,cx=p.x+NW/2,y=p.y-8-(i+1)*19+3;
+      o+=`<rect x="${cx-w/2}" y="${y}" width="${w}" height="16" rx="8" fill="${bg}"/><text x="${cx}" y="${y+11.5}" text-anchor="middle" class="pill" fill="${fg}">${esc(t)}</text>`;
+    });
+    return o;
+  };
+  const marker=(id,c)=>`<marker id="ah-${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="${c}"/></marker>`;
+  let svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" role="img" aria-label="linked list diagram"><defs>${marker('n',LINK_COL.n)}${marker('hot',LINK_COL.hot)}${marker('new',LINK_COL.new)}${marker('ghost',LINK_COL.ghost)}</defs>`;
+  if(!ids.length){
+    svg+=`<text x="${PADX}" y="${PADY+28}" class="empty-note">head → None   (the list is empty)</text>`;
+  }else{
+    ids.forEach(id=>{svg+=link(id,'next');if(d)svg+=link(id,'prev');});
+    ids.forEach(id=>{svg+=nodeSVG(id);});
+    ids.forEach(id=>{svg+=pills(id);});
+  }
+  svg+='</svg>';
+  host.innerHTML=svg;
+
+  /* surrounding UI */
+  $('#l-title').textContent=(d?'Doubly':'Singly')+' linked list';
+  const b=$('#l-status');
+  if(step){
+    const fin=step.badge;
+    b.className='badge'+(fin?' '+fin.t:'');
+    b.textContent=fin?fin.text:'Running…';
+  }else{b.className='badge';b.textContent='Ready';}
+  const sz=orderOf(L.model).length;
+  $('#l-stat').textContent=step?`Node visits: ${step.hops} · size ${orderOf(M).length}`:`Size ${sz}`;
+  if(step||!$('#l-msg').classList.contains('err'))setMsg('#l-msg',step?step.msg:IDLE_L,false);
+  renderCode($('#l-code'),L.code,step&&step.line);
+  $('#l-info').innerHTML=L.info;
+}
+
+L.player=new Player('l',renderLL,()=>commitPending());
+function commitPending(){if(L.pending){L.model=L.pending;L.pending=null;}}
+
+function llBranchGuess(){
+  if(L.op==='update')return L.pos;
+  return L.pos==='head'?'head':L.pos==='tail'?'tail':'mid';
+}
+function refreshLLPreview(){
+  L.code=llCode(L.kind,L.op,llBranchGuess(),L.pos==='value'&&L.op==='delete');
+  L.info=llInfo(L.kind,L.op,llBranchGuess());
+}
+function syncLL(){
+  setSeg('l-kind',L.kind);setSeg('l-op',L.op);setSeg('l-pos',L.pos);
+  const valBtn=$('#l-pos button[data-v="value"]');
+  valBtn.disabled=L.op==='insert';
+  if(L.op==='insert'&&L.pos==='value')L.pos='index';
+  setSeg('l-pos',L.pos);
+  $('#l-f-val').hidden=!(L.op==='insert'||L.op==='update');
+  $('#l-f-idx').hidden=L.pos!=='index';
+  $('#l-f-find').hidden=L.pos!=='value';
+  $('#l-val-lbl').textContent=L.op==='insert'?'Value to insert':'New value';
+  $('#l-find-lbl').textContent=L.op==='update'?'Find (old value)':'Value to delete';
+  refreshLLPreview();
+}
+function llIdle(){
+  L.player.clear();
+}
+function llChanged(){commitPending();syncLL();llIdle();}
+
+function runLL(){
+  commitPending();
+  const r=buildLL(L.model,L.kind,L.op,L.pos,$('#l-val').value,$('#l-idx').value,$('#l-find').value);
+  if(r.error){L.player.pause();setMsg('#l-msg',esc(r.error),true);return;}
+  setMsg('#l-msg','',false);
+  L.pending=r.final;L.code=r.code;L.info=r.info;
+  L.player.load(r.steps);
+}
+function setList(vals){
+  L.player.pause();L.pending=null;L.model=makeList(vals);
+  L.player.clear();
+}
+
+wireSeg('l-kind',v=>{
+  if(v===L.kind)return;
+  commitPending();
+  L.kind=v;
+  L.model=makeList(valsOf(L.model));   /* rebuild so prev pointers are consistent */
+  syncLL();llIdle();
+});
+wireSeg('l-op',v=>{L.op=v;llChanged();});
+wireSeg('l-pos',v=>{L.pos=v;llChanged();});
+$('#l-run').onclick=runLL;
+$('#l-reset').onclick=()=>{setList(DEF_LL);syncLL();L.player.clear();};
+$('#l-random').onclick=()=>{setList(Array.from({length:10},()=>rnd(1,99)));syncLL();L.player.clear();};
+$('#l-empty').onclick=()=>{setList([]);syncLL();L.player.clear();};
+['#l-val','#l-idx','#l-find'].forEach(s=>$(s).addEventListener('keydown',e=>{if(e.key==='Enter')runLL();}));
+
+/* =============================================================
+   Tabs, resize, init
+   ============================================================= */
+$$('.tab').forEach(t=>t.addEventListener('click',()=>{
+  const which=t.dataset.tab;
+  $$('.tab').forEach(x=>x.classList.toggle('on',x===t));
+  $('#tab-array').hidden=which!=='array';
+  $('#tab-list').hidden=which!=='list';
+  A.player.pause();L.player.pause();
+  if(which==='list')renderLL(L.lastStep);
+}));
+let rz=null;
+window.addEventListener('resize',()=>{
+  clearTimeout(rz);
+  rz=setTimeout(()=>{if(!$('#tab-list').hidden)renderLL(L.lastStep);},120);
+});
+
+syncArrayInputs();
+renderArray(null);
+syncLL();
+renderLL(null);
+
+/* tiny hook so the logic can be unit-tested headlessly */
+window.__viz={A,L,buildLinear,buildBinary,buildJump,buildExp,buildIndex,buildSlice,buildLL,makeList,orderOf,valsOf,sliceIdx,parseSpec,isSorted,renderLL,renderArray};
+})();
+</script>
+</body>
+</html>
