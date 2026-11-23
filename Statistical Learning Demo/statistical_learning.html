@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Statistical Learning Demo</title>
+<style>
+:root{
+  --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --soft:#f9fafb;
+  --c0:#dc2626; --c1:#2563eb; --c2:#16a34a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+body{display:flex;flex-direction:column;height:100vh}
+header{padding:12px 20px;border-bottom:1px solid var(--line);flex:none}
+h1{font-size:18px;margin:0;font-weight:650;letter-spacing:-.01em}
+header p{margin:1px 0 0;color:var(--muted);font-size:12.5px}
+.layout{flex:1;min-height:0;display:grid;grid-template-columns:440px minmax(0,1fr)}
+.left{overflow-y:auto;padding:14px 18px 48px;border-right:1px solid var(--line)}
+.right{display:flex;flex-direction:column;padding:12px 16px 14px;min-width:0;min-height:0}
+
+section{margin-bottom:18px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 8px;font-weight:600}
+h3{font-size:13px;margin:0 0 6px;font-weight:600}
+h3 .cap{font-weight:400;color:var(--muted);font-size:12px;margin-left:6px}
+.note{color:var(--muted);font-size:12.5px;margin:8px 0 0}
+.warn{color:#b45309;font-size:12.5px;margin:8px 0 0;min-height:0}
+
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;background:#fff;padding:7px 10px;font:inherit;cursor:pointer;color:var(--ink);
+  border-right:1px solid var(--line);-webkit-tap-highlight-color:transparent;outline:none}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--ink);color:#fff}
+.seg.small{width:120px}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0}
+.row label{color:var(--ink)}
+.row .hint{color:var(--muted);font-size:12px}
+input[type=number],select{font:inherit;border:1px solid var(--line);border-radius:6px;padding:5px 7px;background:#fff;color:var(--ink)}
+.row input[type=number]{width:96px}
+input:focus,select:focus{outline:2px solid #d1d5db;outline-offset:0}
+
+.btn{font:inherit;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 14px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;outline:none}
+.btn:hover{background:var(--soft)}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.primary:hover{background:#000}
+.btns{display:flex;gap:8px;margin-top:10px}
+.kern{border:1px solid var(--line);background:var(--soft);border-radius:6px;padding:3px 12px;font-weight:600;font-size:13px}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.pager .pg{color:var(--muted);font-size:12.5px}
+.btn:disabled{opacity:.4;cursor:default;background:#fff}
+.btn.sm{padding:4px 10px;font-size:12.5px;border-radius:6px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.stats div{border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.stats span{display:block;font-size:11.5px;color:var(--muted)}
+.stats b{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{background:var(--soft);font-weight:600;color:#374151;font-size:12px}
+td.idx{color:var(--muted);width:30px}
+tr.bad td{background:#fef2f2}
+td input{width:68px;padding:3px 5px}
+td select{padding:3px 4px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.tblwrap{margin-bottom:18px;overflow-x:auto}
+
+.rhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;flex:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:#374151}
+.chip{display:inline-flex;align-items:center;gap:6px}
+.chip i{display:inline-block;width:11px;height:11px;border-radius:50%}
+.chip i.line{width:18px;height:0;border-radius:0;border-top:2.5px solid #111827}
+.chip i.dash{width:18px;height:0;border-radius:0;border-top:2px dashed #6b7280}
+.chip i.ring{background:#fff;border:2px solid #111827}
+#viewHint{color:var(--muted);font-size:12.5px}
+.stage{position:relative;flex:1;min-height:360px;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+canvas{position:absolute;left:0;top:0;touch-action:none;display:block}
+.tip{position:absolute;pointer-events:none;background:#111827;color:#fff;font-size:12px;line-height:1.4;padding:6px 9px;
+  border-radius:6px;display:none;white-space:nowrap;z-index:5}
+
+@media (max-width:900px){
+  body{height:auto}
+  .layout{display:block}
+  .left{border-right:0;border-bottom:1px solid var(--line);overflow:visible}
+  .stage{height:480px;flex:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>Statistical Learning Demo</h1>
+  <p>Logistic Regression · Softmax Regression · Support Vector Machine — in 2D and 3D</p>
+</header>
+
+<div class="layout">
+  <aside class="left">
+    <section>
+      <h2>Model</h2>
+      <div class="seg" id="segModel">
+        <button data-v="logistic" class="on">Logistic</button>
+        <button data-v="softmax">Softmax</button>
+        <button data-v="svm">SVM</button>
+      </div>
+      <p class="note" id="modelNote"></p>
+    </section>
+
+    <section>
+      <h2>Data</h2>
+      <div class="row"><label>Dimensions</label>
+        <div class="seg small" id="segDim"><button data-v="2" class="on">2D</button><button data-v="3">3D</button></div>
+      </div>
+      <div class="row"><label for="inN">Samples <span class="hint">(max 200)</span></label>
+        <input type="number" id="inN" min="6" max="200" step="1" value="20"></div>
+      <div class="btns"><button class="btn" id="btnRandom">Randomize data</button></div>
+    </section>
+
+    <section>
+      <h2>Training</h2>
+      <div id="gdParams">
+        <div class="row"><label for="inLr">Learning rate</label><input type="number" id="inLr" min="0.001" max="5" step="0.01" value="0.1"></div>
+        <div class="row"><label for="inEp">Epochs</label><input type="number" id="inEp" min="1" max="2000" step="10" value="300"></div>
+        <div class="row"><label for="inL2">L2 regularization λ</label><input type="number" id="inL2" min="0" max="1" step="0.005" value="0.01"></div>
+      </div>
+      <div id="svmParams" style="display:none">
+        <div class="row"><label>Kernel</label><span class="kern">RBF</span></div>
+        <div class="row"><label for="inC">C <span class="hint">(margin softness)</span></label><input type="number" id="inC" min="0.01" max="1000" step="0.5" value="10"></div>
+        <div class="row"><label for="inG">γ <span class="hint">(RBF width)</span></label><input type="number" id="inG" min="0.001" max="50" step="0.05" value="0.05"></div>
+      </div>
+      <div class="btns"><button class="btn primary" id="btnTrain">Train</button></div>
+      <div class="stats">
+        <div><span id="l1">Accuracy</span><b id="v1">–</b></div>
+        <div><span id="l2">Cross-entropy</span><b id="v2">–</b></div>
+        <div><span id="l3">Epoch</span><b id="v3">–</b></div>
+      </div>
+      <p class="warn" id="warn"></p>
+    </section>
+
+    <div id="tables"></div>
+  </aside>
+
+  <main class="right">
+    <div class="rhead">
+      <div class="legend" id="legend"></div>
+      <div id="viewHint"></div>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <div class="tip" id="tip"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+'use strict';
+/* ---------- constants & state ---------- */
+const COLORS = ['#dc2626', '#2563eb', '#16a34a'];
+const RGB    = [[220,38,38],[37,99,235],[22,163,74]];
+const LIM = 10;                       // every table shows at most this many rows
+const $ = id => document.getElementById(id);
+
+const S = {
+  model:'logistic', dim:2, n:20,
+  lr:0.1, epochs:300, lambda:0.01, C:10, gamma:0.05,
+  page:{data:0, pred:0, sv:0},
+  X:[], y:[], fit:null, pred:[], anim:null, cloud:null,
+  yaw:-0.6, pitch:0.45, zoom:1, hits:[]
+};
+const numClasses = () => S.model === 'softmax' ? 3 : 2;
+
+/* ---------- math helpers ---------- */
+const sig = z => 1 / (1 + Math.exp(-z));
+function softmax(s){
+  const m = Math.max(...s), e = s.map(v => Math.exp(v - m)), t = e.reduce((a,b) => a + b, 0);
+  return e.map(v => v / t);
+}
+function shuffle(a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function randn(){
+  let u = 0, v = 0;
+  while (!u) u = Math.random();
+  while (!v) v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+/* ---------- data generation: well-separated Gaussian blobs ---------- */
+function generateData(){
+  const k = numClasses(), n = S.n;
+  const base = k === 2
+    ? [[2.5,2.5,2.5],[7.5,7.5,7.5]]
+    : [[1.8,2,2],[8.2,2.8,8],[5,8.2,5]];
+  const flip = [0,1,2].map(() => Math.random() < 0.5);
+  const perm = shuffle([...Array(k).keys()]);
+  const centers = base.map((_, i) => base[perm[i]].map((v, j) => {
+    v += (Math.random() - 0.5) * 1.0;
+    return flip[j] ? 10 - v : v;
+  }));
+  const sd = k === 2 ? 0.8 : 0.75;
+  const X = [], y = [];
+  for (let c = 0; c < k; c++){
+    const cnt = Math.floor(n / k) + (c < n % k ? 1 : 0);
+    for (let i = 0; i < cnt; i++){ X.push(centers[c].map(v => v + randn() * sd)); y.push(c); }
+  }
+  const idx = shuffle([...X.keys()]);       // mixed order so the first 10 rows show every class
+  S.X = idx.map(i => X[i]);
+  S.y = idx.map(i => y[i]);
+  S.page = {data: 0, pred: 0, sv: 0};            // new dataset → every table goes back to page 1 (rows 1–10)
+}
+function domain(){
+  let mn = 0, mx = 10;
+  for (const x of S.X) for (let j = 0; j < S.dim; j++){ mn = Math.min(mn, x[j]); mx = Math.max(mx, x[j]); }
+  return [Math.floor(mn) - 1, Math.ceil(mx) + 1];
+}
+
+/* ---------- feature standardisation ---------- */
+function featStats(){
+  const d = S.dim, n = S.X.length, mu = Array(d).fill(0), sg = Array(d).fill(0);
+  for (const x of S.X) for (let j = 0; j < d; j++) mu[j] += x[j];
+  for (let j = 0; j < d; j++) mu[j] /= n;
+  for (const x of S.X) for (let j = 0; j < d; j++) sg[j] += (x[j] - mu[j]) ** 2;
+  for (let j = 0; j < d; j++) sg[j] = Math.sqrt(sg[j] / n) || 1;
+  return {mu, sg};
+}
+function nz(x, st){
+  const d = st.mu.length, o = new Array(d);
+  for (let j = 0; j < d; j++) o[j] = (x[j] - st.mu[j]) / st.sg[j];
+  return o;
+}
+
+/* ---------- Logistic / Softmax: batch gradient descent ---------- */
+function gdInit(){
+  const st = featStats(), d = S.dim, k = numClasses(), rows = k === 2 ? 1 : k;
+  return {
+    st, d, k, Z: S.X.map(x => nz(x, st)),
+    W: Array.from({length: rows}, () => Array(d).fill(0)),
+    b: Array(rows).fill(0), iter: 0, loss: NaN
+  };
+}
+function gdStep(g, iters){
+  const n = g.Z.length, d = g.d, rows = g.W.length;
+  for (let t = 0; t < iters; t++){
+    const gW = Array.from({length: rows}, () => Array(d).fill(0)), gb = Array(rows).fill(0);
+    let loss = 0;
+    for (let i = 0; i < n; i++){
+      const z = g.Z[i], yi = S.y[i];
+      if (g.k === 2){
+        let s = g.b[0];
+        for (let j = 0; j < d; j++) s += g.W[0][j] * z[j];
+        const p = sig(s), e = p - yi;
+        for (let j = 0; j < d; j++) gW[0][j] += e * z[j];
+        gb[0] += e;
+        loss -= yi ? Math.log(Math.max(p, 1e-12)) : Math.log(Math.max(1 - p, 1e-12));
+      } else {
+        const s = g.W.map((w, r) => { let v = g.b[r]; for (let j = 0; j < d; j++) v += w[j] * z[j]; return v; });
+        const p = softmax(s);
+        for (let r = 0; r < rows; r++){
+          const e = p[r] - (yi === r ? 1 : 0);
+          for (let j = 0; j < d; j++) gW[r][j] += e * z[j];
+          gb[r] += e;
+        }
+        loss -= Math.log(Math.max(p[yi], 1e-12));
+      }
+    }
+    for (let r = 0; r < rows; r++){
+      for (let j = 0; j < d; j++) g.W[r][j] -= S.lr * (gW[r][j] / n + S.lambda * g.W[r][j]);
+      g.b[r] -= S.lr * gb[r] / n;
+    }
+    g.loss = loss / n; g.iter++;
+  }
+}
+function gdFit(g){
+  const scores = x => {
+    const z = nz(x, g.st);
+    return g.W.map((w, r) => { let v = g.b[r]; for (let j = 0; j < g.d; j++) v += w[j] * z[j]; return v; });
+  };
+  return {type: g.k === 2 ? 'logistic' : 'softmax', scores, loss: g.loss, iter: g.iter, g};
+}
+/* weights converted back to the original (unstandardised) feature scale */
+function origParams(g){
+  return g.W.map((w, r) => {
+    let b0 = g.b[r];
+    const wo = w.map((v, j) => { b0 -= v * g.st.mu[j] / g.st.sg[j]; return v / g.st.sg[j]; });
+    return {w: wo, b: b0};
+  });
+}
+
+/* ---------- SVM with RBF kernel, trained by SMO (maximal-violating-pair, 2nd-order selection) ---------- */
+function trainSVM(){
+  const st = featStats(), d = S.dim, Z = S.X.map(x => nz(x, st)), n = Z.length;
+  const yy = S.y.map(v => v ? 1 : -1), gam = S.gamma, C = S.C;
+  const K = Array.from({length: n}, () => new Float64Array(n));
+  for (let i = 0; i < n; i++) for (let j = i; j < n; j++){
+    let d2 = 0;
+    for (let q = 0; q < d; q++){ const e = Z[i][q] - Z[j][q]; d2 += e * e; }
+    K[i][j] = K[j][i] = Math.exp(-gam * d2);
+  }
+  const a = new Float64Array(n), G = new Float64Array(n).fill(-1);
+  const TAU = 1e-12, EPS = 1e-3;
+  let it = 0;
+  for (; it < 200000; it++){
+    let Gmax = -Infinity, i = -1;
+    for (let t = 0; t < n; t++){
+      if ((yy[t] === 1 && a[t] < C) || (yy[t] === -1 && a[t] > 0)){
+        const v = -yy[t] * G[t];
+        if (v >= Gmax){ Gmax = v; i = t; }
+      }
+    }
+    let Gmax2 = -Infinity, j = -1, best = Infinity;
+    for (let t = 0; t < n; t++){
+      if ((yy[t] === 1 && a[t] > 0) || (yy[t] === -1 && a[t] < C)){
+        const yG = yy[t] * G[t];
+        if (yG >= Gmax2) Gmax2 = yG;
+        const gd = Gmax + yG;
+        if (gd > 0 && i >= 0){
+          let q = K[i][i] + K[t][t] - 2 * K[i][t];
+          if (q <= 0) q = TAU;
+          const o = -(gd * gd) / q;
+          if (o <= best){ best = o; j = t; }
+        }
+      }
+    }
+    if (i < 0 || j < 0 || Gmax + Gmax2 < EPS) break;
+
+    const oi = a[i], oj = a[j];
+    let q = K[i][i] + K[j][j] - 2 * K[i][j];
+    if (q <= 0) q = TAU;
+    if (yy[i] !== yy[j]){
+      const delta = (-G[i] - G[j]) / q, diff = a[i] - a[j];
+      a[i] += delta; a[j] += delta;
+      if (diff > 0){ if (a[j] < 0){ a[j] = 0; a[i] = diff; } }
+      else         { if (a[i] < 0){ a[i] = 0; a[j] = -diff; } }
+      if (diff > 0){ if (a[i] > C){ a[i] = C; a[j] = C - diff; } }
+      else         { if (a[j] > C){ a[j] = C; a[i] = C + diff; } }
+    } else {
+      const delta = (G[i] - G[j]) / q, sum = a[i] + a[j];
+      a[i] -= delta; a[j] += delta;
+      if (sum > C){ if (a[i] > C){ a[i] = C; a[j] = sum - C; } }
+      else        { if (a[j] < 0){ a[j] = 0; a[i] = sum; } }
+      if (sum > C){ if (a[j] > C){ a[j] = C; a[i] = sum - C; } }
+      else        { if (a[i] < 0){ a[i] = 0; a[j] = sum; } }
+    }
+    const di = a[i] - oi, dj = a[j] - oj;
+    for (let t = 0; t < n; t++) G[t] += yy[t] * (yy[i] * K[t][i] * di + yy[j] * K[t][j] * dj);
+  }
+  // bias: average over free support vectors, else midpoint of the feasible interval
+  let sum = 0, cnt = 0, up = -Infinity, low = Infinity;
+  for (let t = 0; t < n; t++){
+    const v = -yy[t] * G[t];
+    if (a[t] > 1e-8 && a[t] < C - 1e-8){ sum += v; cnt++; }
+    if ((yy[t] === 1 && a[t] < C) || (yy[t] === -1 && a[t] > 0)) up = Math.max(up, v);
+    if ((yy[t] === 1 && a[t] > 0) || (yy[t] === -1 && a[t] < C)) low = Math.min(low, v);
+  }
+  const b = cnt ? sum / cnt : (up + low) / 2;
+  const SV = [];
+  for (let t = 0; t < n; t++) if (a[t] > 1e-8) SV.push(t);
+  const coef = SV.map(t => a[t] * yy[t]), SVz = SV.map(t => Z[t]);
+  const scores = x => {
+    const z = nz(x, st);
+    let f = b;
+    for (let s = 0; s < SV.length; s++){
+      const p = SVz[s]; let d2 = 0;
+      for (let j = 0; j < d; j++){ const e = z[j] - p[j]; d2 += e * e; }
+      f += coef[s] * Math.exp(-gam * d2);
+    }
+    return [f];
+  };
+  return {type: 'svm', scores, SV, svSet: new Set(SV), alpha: a, b, iter: it};
+}
+
+/* ---------- prediction helpers ---------- */
+function probsOf(type, s){
+  if (type === 'softmax') return softmax(s);
+  const p1 = type === 'svm' ? sig(2 * s[0]) : sig(s[0]);
+  return [1 - p1, p1];
+}
+function classOf(type, s){
+  if (type === 'softmax'){ let b = 0; for (let i = 1; i < s.length; i++) if (s[i] > s[b]) b = i; return b; }
+  return s[0] > 0 ? 1 : 0;
+}
+function computePreds(){
+  S.pred = [];
+  if (!S.fit) return;
+  for (const x of S.X){
+    const s = S.fit.scores(x);
+    S.pred.push({s, p: probsOf(S.fit.type, s), c: classOf(S.fit.type, s)});
+  }
+}
+
+/* ---------- training control ---------- */
+function cancelAnim(){ S.anim = null; }
+function retrain(animate){
+  cancelAnim();
+  S.cloud = null;
+  $('warn').textContent = '';
+  if (new Set(S.y).size < 2){
+    S.fit = null;
+    $('warn').textContent = 'At least two different classes are needed to train.';
+    afterFit(true);
+    return;
+  }
+  if (S.model === 'svm'){
+    S.fit = trainSVM();
+  } else {
+    const g = gdInit();
+    if (animate){
+      S.anim = {g, per: Math.max(1, Math.ceil(S.epochs / 70))};
+      S.fit = gdFit(g);
+      requestAnimationFrame(animLoop);
+    } else {
+      gdStep(g, S.epochs);
+      S.fit = gdFit(g);
+    }
+  }
+  afterFit(true);
+}
+function animLoop(){
+  const a = S.anim;
+  if (!a) return;
+  gdStep(a.g, Math.min(a.per, S.epochs - a.g.iter));
+  S.fit = gdFit(a.g);
+  S.cloud = null;
+  const done = a.g.iter >= S.epochs;
+  if (done) S.anim = null;
+  afterFit(done);
+  if (!done) requestAnimationFrame(animLoop);
+}
+function afterFit(tables){
+  computePreds();
+  renderStats();
+  render();
+  if (tables) renderTables();
+}
+
+/* ---------- stats & tables ---------- */
+function renderStats(){
+  const f = S.fit, n = S.X.length;
+  const set = (l1, v1, l2, v2, l3, v3) => {
+    $('l1').textContent = l1; $('v1').textContent = v1;
+    $('l2').textContent = l2; $('v2').textContent = v2;
+    $('l3').textContent = l3; $('v3').textContent = v3;
+  };
+  const svm = S.model === 'svm';
+  if (!f){ set('Accuracy','–', svm ? 'Support vectors' : 'Cross-entropy','–', svm ? 'Bias b' : 'Epoch','–'); return; }
+  const acc = S.pred.filter((p, i) => p.c === S.y[i]).length / n;
+  const accTxt = (acc * 100).toFixed(1) + '%';
+  if (f.type === 'svm') set('Accuracy', accTxt, 'Support vectors', `${f.SV.length} / ${n}`, 'Bias b', f.b.toFixed(3));
+  else set('Accuracy', accTxt, 'Cross-entropy', isFinite(f.loss) ? f.loss.toFixed(4) : '–', 'Epoch', `${f.iter} / ${S.epochs}`);
+}
+const dot = c => `<i class="dot" style="background:${COLORS[c]}"></i>`;
+const f2 = v => (+v).toFixed(2);
+/* every table is paged: page 1 = rows 1–10, "Next 10" moves to 11–20, "Previous 10" goes back */
+function pageRange(key, total){
+  const last = Math.max(0, Math.ceil(total / LIM) - 1);
+  const p = Math.min(S.page[key], last);
+  S.page[key] = p;
+  return [p * LIM, Math.min(total, p * LIM + LIM), p, last];
+}
+function tbl(key, title, total, head, rows){
+  const [from, to, p, last] = pageRange(key, total);
+  const pager = total > LIM
+    ? `<div class="pager"><button class="btn sm" data-page="${key}" data-dir="-1"${p === 0 ? ' disabled' : ''}>← Previous ${LIM}</button>
+         <span class="pg">Page ${p + 1} / ${last + 1}</span>
+         <button class="btn sm" data-page="${key}" data-dir="1"${p === last ? ' disabled' : ''}>Next ${LIM} →</button></div>`
+    : '';
+  return `<div class="tblwrap"><h3>${title}<span class="cap">showing ${total ? from + 1 : 0}–${to} of ${total}</span></h3>
+    <table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>
+    ${pager}</div>`;
+}
+function renderTables(){
+  const d = S.dim, n = S.X.length, k = numClasses();
+  const axes = ['x','y','z'].slice(0, d);
+  let h = '';
+
+  // 1) sample data (editable)
+  let rows = [];
+  const [d0, d1] = pageRange('data', n);
+  for (let i = d0; i < d1; i++){
+    let r = `<tr><td class="idx">${i + 1}</td>`;
+    for (let j = 0; j < d; j++) r += `<td><input type="number" step="0.1" data-i="${i}" data-k="${j}" value="${f2(S.X[i][j])}"></td>`;
+    r += `<td>${dot(S.y[i])}<select data-i="${i}" data-k="y">${[...Array(k).keys()].map(c => `<option value="${c}"${S.y[i] === c ? ' selected' : ''}>${c}</option>`).join('')}</select></td></tr>`;
+    rows.push(r);
+  }
+  h += tbl('data', 'Sample data', n, ['#', ...axes, 'class'], rows);
+
+  // 2) predictions
+  if (S.fit && S.pred.length){
+    const type = S.fit.type;
+    rows = [];
+    const [p0, p1] = pageRange('pred', n);
+    for (let i = p0; i < p1; i++){
+      const p = S.pred[i], ok = p.c === S.y[i];
+      let out;
+      if (type === 'logistic') out = `P(1) = ${p.p[1].toFixed(3)}`;
+      else if (type === 'softmax') out = p.p.map(v => v.toFixed(2)).join(' / ');
+      else out = `f = ${p.s[0] >= 0 ? '+' : ''}${p.s[0].toFixed(3)}`;
+      rows.push(`<tr class="${ok ? '' : 'bad'}"><td class="idx">${i + 1}</td><td>${dot(S.y[i])}${S.y[i]}</td><td>${dot(p.c)}${p.c}</td><td>${out}</td>${type === 'svm' ? `<td>${S.fit.svSet.has(i) ? 'yes' : '–'}</td>` : ''}</tr>`);
+    }
+    const outHead = type === 'logistic' ? 'probability' : type === 'softmax' ? 'P(0) / P(1) / P(2)' : 'decision value';
+    h += tbl('pred', 'Predictions', n, ['#', 'true', 'pred', outHead, ...(type === 'svm' ? ['SV'] : [])], rows);
+
+    // 3) learned parameters or support vectors
+    if (type === 'svm'){
+      const SV = S.fit.SV, [s0, s1] = pageRange('sv', SV.length);
+      rows = [];
+      for (let q = s0; q < s1; q++){
+        const i = SV[q];
+        rows.push(`<tr><td class="idx">${i + 1}</td><td>${dot(S.y[i])}${S.y[i]}</td>${axes.map((_, j) => `<td>${f2(S.X[i][j])}</td>`).join('')}<td>${S.fit.alpha[i].toFixed(3)}</td></tr>`);
+      }
+      h += tbl('sv', 'Support vectors', SV.length, ['#', 'class', ...axes, 'α'], rows);
+    } else {
+      const P = origParams(S.fit.g);
+      rows = [];
+      axes.forEach((a, j) => rows.push(`<tr><td>w<sub>${a}</sub></td>${P.map(p => `<td>${p.w[j].toFixed(3)}</td>`).join('')}</tr>`));
+      rows.push(`<tr><td>bias</td>${P.map(p => `<td>${p.b.toFixed(3)}</td>`).join('')}</tr>`);
+      const head = type === 'logistic' ? ['', 'class 1 vs 0'] : ['', 'class 0', 'class 1', 'class 2'];
+      h += `<div class="tblwrap"><h3>Learned parameters<span class="cap">original feature scale</span></h3><table><thead><tr>${head.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+    }
+  }
+  $('tables').innerHTML = h;
+}
+
+/* ---------- panels, legend ---------- */
+const NOTES = {
+  logistic: 'Binary classifier. σ(w·x + b) gives P(class 1); the boundary is a straight line (a plane in 3D).',
+  softmax:  'Multi-class classifier (3 classes). One weight vector per class; softmax turns the scores into probabilities. Boundaries are straight lines / planes.',
+  svm:      'Binary classifier that places the boundary with the widest possible margin between the two classes. Ringed points are support vectors; dashed lines mark the margins (f = ±1). Raise γ to bend the boundary.'
+};
+function updatePanels(){
+  $('gdParams').style.display = S.model === 'svm' ? 'none' : '';
+  $('svmParams').style.display = S.model === 'svm' ? '' : 'none';
+  $('modelNote').textContent = NOTES[S.model];
+  $('viewHint').textContent = S.dim === 3 ? 'Drag to rotate · scroll to zoom · double-click to reset' : 'Hover a point for details';
+  let h = '';
+  for (let c = 0; c < numClasses(); c++) h += `<span class="chip"><i style="background:${COLORS[c]}"></i>Class ${c}</span>`;
+  h += `<span class="chip"><i class="line"></i>Decision boundary</span>`;
+  if (S.model === 'svm') h += `<span class="chip"><i class="ring"></i>Support vector</span><span class="chip"><i class="dash"></i>Margin (f = ±1)</span>`;
+  $('legend').innerHTML = h;
+  document.querySelectorAll('#segModel button').forEach(b => b.classList.toggle('on', b.dataset.v === S.model));
+  document.querySelectorAll('#segDim button').forEach(b => b.classList.toggle('on', +b.dataset.v === S.dim));
+}
+
+/* ---------- canvas ---------- */
+const cv = $('cv'), ctx = cv.getContext('2d'), off = document.createElement('canvas');
+let W = 0, H = 0;
+function resize(){
+  const r = $('stage').getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; H = r.height;
+  cv.width = Math.max(10, Math.round(W * dpr)); cv.height = Math.max(10, Math.round(H * dpr));
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  render();
+}
+function render(){
+  if (W < 50 || H < 50) return;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+  S.hits = [];
+  if (S.dim === 2) draw2D(); else draw3D();
+}
+
+function tint(p){
+  let r = 0, g = 0, b = 0, mx = 0;
+  for (let k = 0; k < p.length; k++){
+    r += p[k] * RGB[k][0]; g += p[k] * RGB[k][1]; b += p[k] * RGB[k][2];
+    mx = Math.max(mx, p[k]);
+  }
+  const conf = (mx - 1 / p.length) / (1 - 1 / p.length), a = 0.10 + 0.34 * conf;
+  return [255 + (r - 255) * a, 255 + (g - 255) * a, 255 + (b - 255) * a];
+}
+
+/* marching squares on a (GW+1)x(GH+1) grid of values */
+function march(GW, GH, val, level, mask){
+  const out = [];
+  for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++){
+    if (mask && !mask(i, j)) continue;
+    const v0 = val(i, j), v1 = val(i + 1, j), v2 = val(i + 1, j + 1), v3 = val(i, j + 1);
+    const c = (v0 > level ? 1 : 0) | (v1 > level ? 2 : 0) | (v2 > level ? 4 : 0) | (v3 > level ? 8 : 0);
+    if (c === 0 || c === 15) continue;
+    const T = () => [i + (level - v0) / (v1 - v0), j], R = () => [i + 1, j + (level - v1) / (v2 - v1)],
+          B = () => [i + (level - v3) / (v2 - v3), j + 1], L = () => [i, j + (level - v0) / (v3 - v0)];
+    switch (c){
+      case 1: case 14: out.push([L(), T()]); break;
+      case 2: case 13: out.push([T(), R()]); break;
+      case 4: case 11: out.push([R(), B()]); break;
+      case 8: case 7:  out.push([B(), L()]); break;
+      case 3: case 12: out.push([L(), R()]); break;
+      case 6: case 9:  out.push([T(), B()]); break;
+      default: {
+        const ctr = (v0 + v1 + v2 + v3) / 4 > level;
+        if ((c === 5) === ctr) out.push([T(), R()], [B(), L()]);
+        else out.push([L(), T()], [R(), B()]);
+      }
+    }
+  }
+  return out;
+}
+
+/* join marching-squares segments end-to-end into continuous polylines (so dashes run along the whole curve) */
+function chain(segs){
+  const key = p => Math.round(p[0] * 1e4) + ',' + Math.round(p[1] * 1e4);
+  const ends = new Map();
+  segs.forEach((s, i) => s.forEach(p => { const k = key(p); (ends.get(k) || ends.set(k, []).get(k)).push(i); }));
+  const used = new Uint8Array(segs.length), lines = [];
+  const next = (p, from) => {
+    for (const j of ends.get(key(p)) || []) if (!used[j] && j !== from) return j;
+    return -1;
+  };
+  for (let i = 0; i < segs.length; i++){
+    if (used[i]) continue;
+    used[i] = 1;
+    const line = [segs[i][0], segs[i][1]];
+    for (const dir of [1, 0]){                    // grow from the tail, then from the head
+      for (;;){
+        const tip = dir ? line[line.length - 1] : line[0];
+        const j = next(tip, i);
+        if (j < 0) break;
+        used[j] = 1;
+        const [a, b] = segs[j];
+        const other = key(a) === key(tip) ? b : a;
+        if (dir) line.push(other); else line.unshift(other);
+      }
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+function niceStep(lo, hi){ return (hi - lo) > 16 ? 4 : 2; }
+
+function draw2D(){
+  const pad = {l: 46, r: 14, t: 12, b: 38};
+  const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+  const [lo, hi] = domain();
+  const px = v => pad.l + (v - lo) / (hi - lo) * pw;
+  const py = v => pad.t + ph - (v - lo) / (hi - lo) * ph;
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(pad.l, pad.t, pw, ph); ctx.clip();
+
+  const fit = S.fit;
+  if (fit){
+    const GW = Math.max(30, Math.min(120, Math.round(pw / 5))), GH = Math.max(24, Math.round(GW * ph / pw));
+    const nS = fit.type === 'softmax' ? 3 : 1, stride = GW + 1;
+    const field = new Float32Array(stride * (GH + 1) * nS), am = new Uint8Array(stride * (GH + 1));
+    off.width = GW + 1; off.height = GH + 1;
+    const octx = off.getContext('2d'), img = octx.createImageData(GW + 1, GH + 1);
+    for (let gj = 0; gj <= GH; gj++) for (let gi = 0; gi <= GW; gi++){
+      const xv = lo + (hi - lo) * gi / GW, yv = lo + (hi - lo) * (1 - gj / GH);
+      const s = fit.scores([xv, yv]), id = gj * stride + gi;
+      for (let q = 0; q < nS; q++) field[id * nS + q] = s[q];
+      am[id] = classOf(fit.type, s);
+      const col = tint(probsOf(fit.type, s));
+      img.data[id * 4] = col[0]; img.data[id * 4 + 1] = col[1]; img.data[id * 4 + 2] = col[2]; img.data[id * 4 + 3] = 255;
+    }
+    octx.putImageData(img, 0, 0);
+    const cw = pw / GW, ch = ph / GH;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(off, pad.l - cw / 2, pad.t - ch / 2, (GW + 1) * cw, (GH + 1) * ch);
+
+    // grid lines on top of the tint
+    drawGrid2D(pad, pw, ph, lo, hi, px, py);
+
+    const gx = i => pad.l + i / GW * pw, gy = j => pad.t + j / GH * ph;
+    const stroke = (segs, color, width, dash) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash || []);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (const line of chain(segs)){
+        line.forEach((p, q) => q ? ctx.lineTo(gx(p[0]), gy(p[1])) : ctx.moveTo(gx(p[0]), gy(p[1])));
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+    };
+    if (fit.type === 'softmax'){
+      for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++){
+        const val = (a, b) => { const id = (b * stride + a) * 3; return field[id + i] - field[id + j]; };
+        const mask = (a, b) => {
+          const ids = [b * stride + a, b * stride + a + 1, (b + 1) * stride + a + 1, (b + 1) * stride + a];
+          return ids.every(q => am[q] === i || am[q] === j);
+        };
+        stroke(march(GW, GH, val, 0, mask), '#111827', 2);
+      }
+    } else {
+      const val = (a, b) => field[b * stride + a];
+      if (fit.type === 'svm'){
+        stroke(march(GW, GH, val, 1), '#6b7280', 1.3, [5, 4]);
+        stroke(march(GW, GH, val, -1), '#6b7280', 1.3, [5, 4]);
+      }
+      stroke(march(GW, GH, val, 0), '#111827', 2);
+    }
+  } else {
+    drawGrid2D(pad, pw, ph, lo, hi, px, py);
+  }
+  ctx.restore();
+
+  // frame, ticks, labels
+  ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 1;
+  ctx.strokeRect(pad.l + .5, pad.t + .5, pw, ph);
+  ctx.fillStyle = '#6b7280'; ctx.font = '11px sans-serif';
+  const step = niceStep(lo, hi);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ctx.fillText(t, px(t), pad.t + ph + 6);
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ctx.fillText(t, pad.l - 7, py(t));
+  ctx.fillStyle = '#374151'; ctx.font = '600 12px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('x', pad.l + pw / 2, H - 4);
+  ctx.save(); ctx.translate(13, pad.t + ph / 2); ctx.rotate(-Math.PI / 2);
+  ctx.textBaseline = 'top'; ctx.fillText('y', 0, 0); ctx.restore();
+
+  // points
+  const svm = fit && fit.type === 'svm';
+  S.X.forEach((x, i) => {
+    const X = px(x[0]), Y = py(x[1]);
+    ctx.beginPath(); ctx.arc(X, Y, 6, 0, Math.PI * 2);
+    ctx.fillStyle = COLORS[S.y[i]]; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#fff'; ctx.stroke();
+    if (svm && fit.svSet.has(i)){
+      ctx.beginPath(); ctx.arc(X, Y, 10, 0, Math.PI * 2);
+      ctx.lineWidth = 2; ctx.strokeStyle = '#111827'; ctx.stroke();
+    }
+    S.hits.push({i, x: X, y: Y, r: 8});
+  });
+}
+function drawGrid2D(pad, pw, ph, lo, hi, px, py){
+  const step = niceStep(lo, hi);
+  ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1; ctx.beginPath();
+  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step){
+    ctx.moveTo(px(t), pad.t); ctx.lineTo(px(t), pad.t + ph);
+    ctx.moveTo(pad.l, py(t)); ctx.lineTo(pad.l + pw, py(t));
+  }
+  ctx.stroke();
+}
+
+/* ---------- 3D ---------- */
+function buildCloud(){
+  const fit = S.fit;
+  if (!fit) return [];
+  const [lo, hi] = domain(), G = 24, bin = fit.type !== 'softmax';
+  const pos = i => lo + (hi - lo) * (i + 0.5) / G, id = (a, b, c) => (a * G + b) * G + c;
+  const F = new Float32Array(G * G * G);
+  for (let a = 0; a < G; a++) for (let b = 0; b < G; b++) for (let c = 0; c < G; c++){
+    const s = fit.scores([pos(a), pos(b), pos(c)]);
+    F[id(a, b, c)] = bin ? s[0] : classOf('softmax', s);
+  }
+  const levels = bin ? (fit.type === 'svm' ? [0, 1, -1] : [0]) : [null], pts = [];
+  const dirs = [[1,0,0],[0,1,0],[0,0,1]];
+  for (const L of levels) for (let a = 0; a < G; a++) for (let b = 0; b < G; b++) for (let c = 0; c < G; c++){
+    const v = F[id(a, b, c)];
+    for (const [da, db, dc] of dirs){
+      const a2 = a + da, b2 = b + db, c2 = c + dc;
+      if (a2 >= G || b2 >= G || c2 >= G) continue;
+      const w = F[id(a2, b2, c2)];
+      let t = -1;
+      if (bin){ if ((v > L) !== (w > L)) t = (L - v) / (w - v); }
+      else if (v !== w) t = 0.5;
+      if (t < 0) continue;
+      pts.push([pos(a) + (pos(a2) - pos(a)) * t, pos(b) + (pos(b2) - pos(b)) * t, pos(c) + (pos(c2) - pos(c)) * t, L === 0 || L === null ? 0 : 1]);
+    }
+  }
+  return pts;
+}
+function draw3D(){
+  const [lo, hi] = domain(), mid = (lo + hi) / 2, half = (hi - lo) / 2;
+  const cx = W / 2, cy = H / 2 + 8, sc = Math.min(W, H) * 0.32 * S.zoom;
+  const cyw = Math.cos(S.yaw), syw = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  const P = (x, y, z) => {
+    const u = (x - mid) / half, v = (y - mid) / half, w = (z - mid) / half;
+    const x1 = u * cyw - v * syw, y1 = u * syw + v * cyw;
+    const y2 = y1 * cp - w * sp, z2 = y1 * sp + w * cp, p = 3.5 / (3.5 + y2);
+    return {sx: cx + x1 * sc * p, sy: cy - z2 * sc * p, d: y2, p};
+  };
+  const step = niceStep(lo, hi), ticks = [];
+  for (let t = Math.ceil(lo / step) * step; t <= hi; t += step) ticks.push(t);
+
+  // floor grid (z = lo)
+  ctx.strokeStyle = '#eceef1'; ctx.lineWidth = 1; ctx.beginPath();
+  for (const t of ticks){
+    let a = P(t, lo, lo), b = P(t, hi, lo); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy);
+    a = P(lo, t, lo); b = P(hi, t, lo); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy);
+  }
+  ctx.stroke();
+  // bounding box
+  const corner = i => [i & 1 ? hi : lo, i & 2 ? hi : lo, i & 4 ? hi : lo];
+  ctx.strokeStyle = '#d1d5db'; ctx.beginPath();
+  for (let i = 0; i < 8; i++) for (const bit of [1, 2, 4]) if (!(i & bit)){
+    const a = P(...corner(i)), b = P(...corner(i | bit));
+    ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy);
+  }
+  ctx.stroke();
+  // ticks + axis names
+  ctx.fillStyle = '#9ca3af'; ctx.font = '10.5px sans-serif'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (const t of ticks){
+    let q = P(t, lo, lo); ctx.fillText(t, q.sx - 5, q.sy + 11);
+    q = P(lo, t, lo);     ctx.fillText(t, q.sx - 5, q.sy + 11);
+    q = P(lo, lo, t);     ctx.fillText(t, q.sx - 6, q.sy);
+  }
+  ctx.fillStyle = '#374151'; ctx.font = '600 13px sans-serif'; ctx.textAlign = 'center';
+  const e = hi + (hi - lo) * 0.07;
+  [['x', P(e, lo, lo)], ['y', P(lo, e, lo)], ['z', P(lo, lo, e)]].forEach(([n, q]) => ctx.fillText(n, q.sx, q.sy));
+
+  // drop lines to the floor
+  S.X.forEach((x, i) => {
+    const a = P(x[0], x[1], x[2]), b = P(x[0], x[1], lo);
+    ctx.strokeStyle = COLORS[S.y[i]]; ctx.globalAlpha = 0.14; ctx.beginPath();
+    ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); ctx.globalAlpha = 1;
+  });
+
+  // collect + depth sort
+  if (S.cloud === null) S.cloud = buildCloud();
+  const items = [];
+  for (const c of S.cloud){ const q = P(c[0], c[1], c[2]); items.push({k: 'c', sx: q.sx, sy: q.sy, d: q.d, kind: c[3]}); }
+  const zoomK = 0.7 + 0.3 * S.zoom;
+  S.X.forEach((x, i) => { const q = P(x[0], x[1], x[2]); items.push({k: 'p', i, sx: q.sx, sy: q.sy, d: q.d, r: 5.5 * q.p * zoomK}); });
+  items.sort((a, b) => b.d - a.d);
+  const svm = S.fit && S.fit.type === 'svm';
+  for (const it of items){
+    if (it.k === 'c'){
+      ctx.fillStyle = it.kind === 0 ? 'rgba(17,24,39,0.42)' : 'rgba(107,114,128,0.26)';
+      ctx.fillRect(it.sx - 1, it.sy - 1, 2.2, 2.2);
+    } else {
+      ctx.beginPath(); ctx.arc(it.sx, it.sy, it.r, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS[S.y[it.i]]; ctx.fill();
+      ctx.lineWidth = 1.3; ctx.strokeStyle = '#fff'; ctx.stroke();
+      if (svm && S.fit.svSet.has(it.i)){
+        ctx.beginPath(); ctx.arc(it.sx, it.sy, it.r + 3.5, 0, Math.PI * 2);
+        ctx.lineWidth = 2; ctx.strokeStyle = '#111827'; ctx.stroke();
+      }
+      S.hits.push({i: it.i, x: it.sx, y: it.sy, r: it.r + 3});
+    }
+  }
+}
+
+/* ---------- interaction ---------- */
+const tip = $('tip');
+function hideTip(){ tip.style.display = 'none'; }
+function hover(e){
+  const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  let hit = null;
+  for (let q = S.hits.length - 1; q >= 0; q--){
+    const h = S.hits[q];
+    if (Math.hypot(h.x - mx, h.y - my) <= h.r + 2){ hit = h; break; }
+  }
+  if (!hit){ hideTip(); return; }
+  const i = hit.i, x = S.X[i], p = S.pred[i];
+  const coords = x.slice(0, S.dim).map(f2).join(', ');
+  let h = `<b>Point #${i + 1}</b> · class ${S.y[i]}<br>(${coords})`;
+  if (p){
+    h += `<br>predicted: ${p.c}`;
+    if (S.fit.type === 'svm') h += ` · f = ${p.s[0].toFixed(3)}${S.fit.svSet.has(i) ? '<br>support vector' : ''}`;
+    else h += ` · P = ${p.p[p.c].toFixed(3)}`;
+  }
+  tip.innerHTML = h; tip.style.display = 'block';
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  tip.style.left = Math.min(mx + 14, W - tw - 6) + 'px';
+  tip.style.top = Math.min(my + 14, H - th - 6) + 'px';
+}
+let drag = null;
+cv.addEventListener('pointerdown', e => {
+  if (S.dim !== 3) return;
+  drag = {x: e.clientX, y: e.clientY};
+  cv.setPointerCapture(e.pointerId); hideTip();
+});
+cv.addEventListener('pointermove', e => {
+  if (drag){
+    S.yaw += (e.clientX - drag.x) * 0.008;
+    S.pitch = clamp(S.pitch + (e.clientY - drag.y) * 0.008, -1.45, 1.45);
+    drag.x = e.clientX; drag.y = e.clientY; render(); return;
+  }
+  hover(e);
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('pointercancel', () => { drag = null; });
+cv.addEventListener('pointerleave', hideTip);
+cv.addEventListener('wheel', e => {
+  if (S.dim !== 3) return;
+  e.preventDefault();
+  S.zoom = clamp(S.zoom * (e.deltaY < 0 ? 1.08 : 0.926), 0.6, 2.6); render();
+}, {passive: false});
+cv.addEventListener('dblclick', () => {
+  if (S.dim === 3){ S.yaw = -0.6; S.pitch = 0.45; S.zoom = 1; render(); }
+});
+
+/* ---------- controls ---------- */
+document.querySelectorAll('#segModel button').forEach(b => b.addEventListener('click', () => {
+  const prevK = numClasses();
+  S.model = b.dataset.v;
+  if (numClasses() !== prevK) generateData();
+  updatePanels(); retrain(false);
+}));
+document.querySelectorAll('#segDim button').forEach(b => b.addEventListener('click', () => {
+  S.dim = +b.dataset.v; updatePanels(); retrain(false);
+}));
+function bindNum(id, key, min, max, isInt, regen){
+  $(id).addEventListener('change', () => {
+    let v = parseFloat($(id).value);
+    if (!isFinite(v)) v = S[key];
+    v = clamp(v, min, max); if (isInt) v = Math.round(v);
+    S[key] = v; $(id).value = v;
+    if (regen) generateData();
+    retrain(false);
+    if (regen) renderTables();
+  });
+}
+bindNum('inN', 'n', 6, 200, true, true);
+bindNum('inLr', 'lr', 0.001, 5, false);
+bindNum('inEp', 'epochs', 1, 2000, true);
+bindNum('inL2', 'lambda', 0, 1, false);
+bindNum('inC', 'C', 0.01, 1000, false);
+bindNum('inG', 'gamma', 0.001, 50, false);
+$('btnRandom').addEventListener('click', () => { generateData(); retrain(false); });
+$('btnTrain').addEventListener('click', () => retrain(true));
+
+$('tables').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.page && !b.disabled){
+    S.page[b.dataset.page] = Math.max(0, S.page[b.dataset.page] + +b.dataset.dir);
+    renderTables();
+  }
+});
+$('tables').addEventListener('change', e => {
+  const t = e.target;
+  if (!t.dataset || t.dataset.i === undefined) return;
+  const i = +t.dataset.i;
+  if (t.dataset.k === 'y') S.y[i] = +t.value;
+  else {
+    const v = parseFloat(t.value);
+    if (!isFinite(v)){ renderTables(); return; }
+    S.X[i][+t.dataset.k] = v;
+  }
+  retrain(false);
+});
+
+/* ---------- init ---------- */
+generateData();
+updatePanels();
+new ResizeObserver(resize).observe($('stage'));
+resize();
+retrain(false);
+</script>
+</body>
+</html>
